@@ -1,0 +1,6 @@
+numpy
+pandas
+statsmodels
+sqlalchemy
+mysql-connector-python
+web3
