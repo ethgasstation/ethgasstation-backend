@@ -5,6 +5,8 @@ This python script is designed to monitor a local ethereum node (geth, not teste
 
 It also stores transaction data in a mysql database.  Create a user named 'ethgas' password 'station'.  This allows you to run the model_gasprice script to reestimate the regression model used to generate the predictions.
 
+Note:  you need to create a folder 'json' in the parent directory and then a new json file will be written to the folder each block containing the gas price predictions and the prediction table.  The gas price in ethgasAPI is currently in 10gwei units, so divide them by 10 to get in gwei.
+
 usage:  `python3 ethgasstation.py`
 
 requirements: `pip3 install -r requirements.txt`
