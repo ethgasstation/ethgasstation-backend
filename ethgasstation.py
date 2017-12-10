@@ -288,7 +288,7 @@ def get_gasprice_recs(prediction_table, block_time, block, speed, minlow=-1, sub
         else:
             observed_safelow = 0
 
-        if unsafe > model_safelow :
+        if unsafe >= model_safelow :
             safelow = observed_safelow
         else:
             safelow = model_safelow
