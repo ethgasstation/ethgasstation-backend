@@ -34,7 +34,7 @@ print('pre-chained ' + str(len(predictData)))
 predictData.loc[predictData['chained']==1, 'confirmTime']=np.nan
 print('num with confirm times')
 print (predictData['confirmTime'].count())
-predictData = predictData.dropna(subset=['confirmTime', 'tx_unchained'])
+predictData = predictData.dropna(subset=['confirmTime'])
 print('post-chained ' + str(len(predictData)))
 predictData = predictData.loc[predictData['confirmTime']>0]
 print (len(predictData))

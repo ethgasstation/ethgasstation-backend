@@ -11,6 +11,7 @@ from sqlalchemy import create_engine, Column, Integer, String, DECIMAL, BigInteg
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from egs_ref import *
+import modelparams
 
 web3 = Web3(HTTPProvider('http://localhost:8545'))
 engine = create_engine(
@@ -56,7 +57,7 @@ def write_to_sql(alltx, analyzed_block, block_sumdf, mined_blockdf_seen, block):
     block_sumdf.to_sql(con=engine, name='blockdata2', if_exists='append', index=False)
 
 
-def write_to_json(gprecs, txpool_by_gp, prediction_table, analyzed_block):
+def write_to_json(gprecs, txpool_by_gp, prediction_table, analyzed_block,submitted_hourago=None):
     """write json data"""
     try:
         txpool_by_gp = txpool_by_gp.rename(columns={'gas_price':'count'})
@@ -85,6 +86,12 @@ def write_to_json(gprecs, txpool_by_gp, prediction_table, analyzed_block):
 
         with open(filepath_analyzedblock, 'w') as outfile:
             outfile.write(analyzed_blockout)
+        
+        if not submitted_hourago.empty:
+            submitted_hourago = submitted_hourago.to_json(orient='records')
+            filepath_hourago = parentdir + '/json/hourago.json'
+            with open(filepath_hourago, 'w') as outfile:
+                outfile.write(submitted_hourago)
     
     except Exception as e:
         print(e)
@@ -149,13 +156,9 @@ def get_tx_atabove(gasprice, txpool_by_gp):
 def predict(row):
     if row['chained'] == 1:
         return np.nan
-    intercept = 3.3381
-    hpa_coef = -0.0172
-    txatabove_coef= 0.001
-    interact_coef = 0
-    high_gas_coef = 1.6907
+    
     try:
-        sum1 = (intercept + (row['hashpower_accepting']*hpa_coef) + (row['tx_atabove']*txatabove_coef) + (row['hgXhpa']*interact_coef) + (row['highgas2']*high_gas_coef))
+        sum1 = (modelparams.INTERCEPT + (row['hashpower_accepting'] * modelparams.HPA_COEF) + (row['tx_atabove'] * modelparams.TXATABOVE_COEF) + (row['hgXhpa'] * modelparams.INTERACT_COEF) + (row['highgas2'] *  modelparams.HIGHGAS_COEF))
         prediction = np.exp(sum1)
         if prediction < 2:
             prediction = 2
@@ -166,6 +169,14 @@ def predict(row):
         print(e)
         return np.nan
 
+def check_nonce(row, txpool_block_nonce):
+    if row['num_from']>1:
+        if row['nonce'] > txpool_block_nonce.loc[row['from_address'],'nonce']:
+            return 1
+        if row['nonce'] == txpool_block_nonce.loc[row['from_address'], 'nonce']:
+            return 0
+    else:
+        return 0
 
 def analyze_last200blocks(block, blockdata):
     recent_blocks = blockdata.loc[blockdata['block_number'] > (block-200), ['mingasprice', 'block_number', 'gaslimit', 'time_mined', 'speed']]
@@ -206,9 +217,13 @@ def analyze_txpool(block, txpool, alltx, hashpower, avg_timemined, gaslimit):
     txpool_block['num_to'] = txpool_block.groupby('to_address')['block_posted'].transform('count')
     txpool_block['ico'] = (txpool_block['num_to'] > 90).astype(int)
     txpool_block['dump'] = (txpool_block['num_from'] > 5).astype(int)
-    #group by gasprice
+    
+    #new dfs grouped by gasprice and nonce
     txpool_by_gp = txpool_block[['gas_price', 'round_gp_10gwei']].groupby('round_gp_10gwei').agg({'gas_price':'count'})
     txpool_block_nonce = txpool_block[['from_address', 'nonce']].groupby('from_address').agg({'nonce':'min'})
+
+    #when multiple tx from same from address, finds tx with lowest nonce (unchained) - others are 'chained' 
+    txpool_block['chained'] = txpool_block.apply(check_nonce, args=(txpool_block_nonce,), axis=1)
 
     #predictiontable
     predictTable = pd.DataFrame({'gasprice' :  range(10, 1010, 10)})
@@ -233,8 +248,8 @@ def analyze_txpool(block, txpool, alltx, hashpower, avg_timemined, gaslimit):
     #finally, analyze txpool transactions
     print('txpool block length ' + str(len(txpool_block)))
     txpool_block['pct_limit'] = txpool_block['gas_offered'].apply(lambda x: x / gaslimit)
-    txpool_block['high_gas_offered'] = (txpool_block['pct_limit']> .037).astype(int)
-    txpool_block['highgas2'] = (txpool_block['pct_limit'] > .15).astype(int)
+    txpool_block['high_gas_offered'] = (txpool_block['pct_limit'] > modelparams.HIGHGAS1).astype(int)
+    txpool_block['highgas2'] = (txpool_block['pct_limit'] > modelparams.HIGHGAS2).astype(int)
     txpool_block['hashpower_accepting'] = txpool_block['round_gp_10gwei'].apply(lambda x: gp_lookup[x] if x in gp_lookup else 100)
     txpool_block['hgXhpa'] = txpool_block['highgas2']*txpool_block['hashpower_accepting']
     txpool_block['tx_atabove'] = txpool_block['round_gp_10gwei'].apply(lambda x: txatabove_lookup[x] if x in txatabove_lookup else 1)
@@ -244,17 +259,40 @@ def analyze_txpool(block, txpool, alltx, hashpower, avg_timemined, gaslimit):
     txpool_by_gp.reset_index(inplace=True, drop=False)
     return(txpool_block, txpool_by_gp, predictTable)
 
-def get_gasprice_recs(prediction_table, block_time, block, speed, minlow=-1):
+def get_gasprice_recs(prediction_table, block_time, block, speed, minlow=-1, submitted_hourago=None):
     
-    def get_safelow(minlow):
-        series = prediction_table.loc[prediction_table['expectedTime'] <= 10, 'gasprice']
-        safelow = series.min()
+    def get_safelow(minlow, submitted_hourago):
+        series = prediction_table.loc[prediction_table['expectedTime'] <= 20, 'gasprice']
+        model_safelow = series.min()
         minhash_list = prediction_table.loc[prediction_table['hashpower_accepting']>=1.5, 'gasprice']
-        if (safelow < minhash_list.min()):
-            safelow = minhash_list.min()
+        if (model_safelow < minhash_list.min()):
+            model_safelow = minhash_list.min()
         if minlow >= 0:
-            if safelow < minlow:
-                safelow = minlow
+            if model_safelow < minlow:
+                model_safelow = minlow
+        print('modelled safelow ' + str(model_safelow))
+        if not submitted_hourago.empty:
+            series = submitted_hourago.loc[(submitted_hourago['total']>=5) & (submitted_hourago['pct_unmined']>=.1) & (submitted_hourago['still_here']>=2)]
+            if not series.empty:
+                unsafe = series.index.max()
+            else:
+                unsafe = 0
+            print('unsafe = ' + str(unsafe))
+            series1 = submitted_hourago.loc[(submitted_hourago['total']>=3) & ((submitted_hourago['pct_unmined']<.1) | (submitted_hourago['still_here'] <=1 ))]
+            observed_safelow = series1.loc[series1.index > unsafe]
+            if not observed_safelow.empty:
+                observed_safelow = observed_safelow.index.min()
+            else:
+                observed_safelow = unsafe + 10
+            print('observed safelow = ' + str(observed_safelow))
+        else:
+            observed_safelow = 0
+
+        if unsafe > model_safelow :
+            safelow = observed_safelow
+        else:
+            safelow = model_safelow
+        print('safelow ' + str(safelow))
         return float(safelow)
 
     def get_average():
@@ -293,7 +331,7 @@ def get_gasprice_recs(prediction_table, block_time, block, speed, minlow=-1):
         return float(wait)
     
     gprecs = {}
-    gprecs['safeLow'] = get_safelow(minlow)
+    gprecs['safeLow'] = get_safelow(minlow, submitted_hourago)
     gprecs['safeLowWait'] = get_wait(gprecs['safeLow'])
     gprecs['average'] = get_average()
     gprecs['avgWait'] = get_wait(gprecs['average'])
@@ -367,16 +405,28 @@ def master_control():
             assert analyzed_block.index.duplicated().sum()==0
             alltx = alltx.combine_first(analyzed_block)
 
+            submitted_hourago = alltx.loc[(alltx['block_posted'] < (block-250)) & (alltx['block_posted'] > (block-350)) & (alltx['chained']==0) & (alltx['gas_offered'] < 500000)].copy()
+            print(len(submitted_hourago))
+
+            if len(submitted_hourago > 50):
+                submitted_hourago['still_here'] = submitted_hourago.index.isin(current_txpool.index)
+                submitted_hourago = submitted_hourago[['gas_price', 'round_gp_10gwei', 'still_here']].groupby('round_gp_10gwei').agg({'gas_price':'count', 'still_here':'sum'})
+                submitted_hourago.rename(columns={'gas_price':'total'}, inplace=True)
+                submitted_hourago['pct_unmined'] = submitted_hourago['still_here']/submitted_hourago['total']
+
             #with pd.option_context('display.max_columns', None,):
                 #print(analyzed_block)
             # update tx dataframe with txpool variables and time preidctions
 
             #get gpRecs
-            gprecs = get_gasprice_recs (predictiondf, block_time, block, speed, timer.minlow)
+            gprecs = get_gasprice_recs (predictiondf, block_time, block, speed, timer.minlow, submitted_hourago)
 
             #every block, write gprecs, predictions, txpool by gasprice
             analyzed_block.reset_index(drop=False, inplace=True)
-            write_to_json(gprecs, txpool_by_gp, predictiondf, analyzed_block)
+            if not submitted_hourago.empty:
+                submitted_hourago.reset_index(drop=False, inplace=True)
+                submitted_hourago = submitted_hourago.sort_values('round_gp_10gwei')
+            write_to_json(gprecs, txpool_by_gp, predictiondf, analyzed_block, submitted_hourago)
             write_to_sql(alltx, analyzed_block, block_sumdf, mined_blockdf_seen, block)
 
             #keep from getting too large
