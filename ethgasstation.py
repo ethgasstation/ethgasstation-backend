@@ -475,7 +475,7 @@ def master_control():
                 submitted_hourago['pct_unmined'] = submitted_hourago['still_here']/submitted_hourago['total']
                 submitted_hourago['pct_unmined'] = submitted_hourago[['still_here', 'total']].apply(roundresult, axis=1)
             else:
-                submitted_hourago = pd.dataframe()
+                submitted_hourago = pd.DataFrame()
 
             submitted_5mago = alltx.loc[(alltx['block_posted'] < (block-20)) & (alltx['block_posted'] > (block-70)) & (alltx['chained']==0) & (alltx['gas_offered'] < 500000)].copy()
             print(len(submitted_5mago))
@@ -486,7 +486,7 @@ def master_control():
                 submitted_5mago.rename(columns={'gas_price':'total'}, inplace=True)
                 submitted_5mago['pct_unmined'] = submitted_5mago[['still_here', 'total']].apply(roundresult, axis=1)
             else:
-                submitted_5mago = pd.dataframe()
+                submitted_5mago = pd.DataFrame()
 
 
             #make txpool block data
