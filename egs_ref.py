@@ -144,10 +144,10 @@ class CleanTx():
         """Rounds the gas price to gwei"""
         gp = self.gas_price/1e8
         if gp >= 1 and gp < 10:
-            gp = np.floor(gp)
+            gp = np.ceil(gp)
         elif gp >= 10:
             gp = gp/10
-            gp = np.floor(gp)
+            gp = np.ceil(gp)
             gp = gp*10
         else:
             gp = 0
