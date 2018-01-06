@@ -1,8 +1,17 @@
-import pandas as pd
-import numpy as np
+"""
+egs_ref.py
+
+Utility functions, MySQL Schemas, and other such architecture
+for the EthGasStation adaptive oracle.
+"""
+
 import json
-import urllib
 import time
+import urllib
+
+import numpy as np
+import pandas as pd
+
 from sqlalchemy import create_engine, Column, Integer, String, DECIMAL, BigInteger
 from sqlalchemy.ext.declarative import declarative_base
 
@@ -99,7 +108,7 @@ class Block_Data(Base):
     main = Column(Integer)
     block_number = Column(Integer)
 
-class Timers():
+class Timers(object):
     """
     class to keep track of time relative to network block
     also tracks low mined price from reports
@@ -117,11 +126,11 @@ class Timers():
 
     def add_block(self, block_number, block_time):
         self.block_store[block_number] = block_time
-    
+
     def read_block_time(self, block_number):
         return self.block_store.pop(block_number, None)
 
-class CleanTx():
+class CleanTx(object):
     """transaction object / methods for pandas"""
     def __init__(self, tx_obj, block_posted=None, time_posted=None, miner=None):
         self.hash = tx_obj.hash
@@ -153,7 +162,7 @@ class CleanTx():
             gp = 0
         self.gp_10gwei = gp
 
-class CleanBlock():
+class CleanBlock(object):
     """block object/methods for pandas"""
     def __init__(self, block_obj, main, uncle, timemined, mingasprice=None, numtx = None, weightedgp=None, includedblock=None):
         self.block_number = block_obj.number 
@@ -170,7 +179,7 @@ class CleanBlock():
         self.uncle = uncle
         self.includedblock = includedblock
         self.speed = self.gasused / self.gaslimit
-    
+
     def to_dataframe(self):
         data = {0:{'block_number':self.block_number, 'gasused':self.gasused, 'miner':self.miner, 'gaslimit':self.gaslimit, 'numtx':self.numtx, 'blockhash':self.blockhash, 'time_mined':self.time_mined, 'mingasprice':self.mingasprice, 'uncsreported':self.uncsreported, 'blockfee':self.blockfee, 'main':self.main, 'uncle':self.uncle, 'speed':self.speed, 'includedblock':self.includedblock}}
         return pd.DataFrame.from_dict(data, orient='index')

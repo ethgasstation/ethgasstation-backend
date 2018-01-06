@@ -1,20 +1,44 @@
 #analysis:  Run poission regression models
 
-import mysql.connector
-import pandas as pd
-import numpy as np 
-import statsmodels.api as sm
+import json
 import math
+import os
+import re
 import sys
-import os, subprocess, re
-import urllib,json
+import subprocess
+import urllib
+
+import mysql.connector
+import numpy as np 
+import pandas as pd
+
+import statsmodels.api as sm
+
 from sqlalchemy import create_engine 
 from patsy import dmatrices
 
-cnx = mysql.connector.connect(user='ethgas', password='station', host='127.0.0.1', database='tx')
+
+from egs.settings import get_settings_filepath, load_settings, get_setting
+
+settings_file = get_settings_filepath(os.path.dirname(os.path.realpath(__file__)))
+load_settings(settings_file)
+
+# TODO: choose one mysql or the other
+cnx = mysql.connector.connect(
+    user=get_setting('mysql', 'username'),
+    password=get_setting('mysql', 'password'),
+    host=get_setting('mysql', 'hostname'),
+    port=get_setting('mysql', 'port'),
+    database=get_setting('mysql', 'database'))
 cursor = cnx.cursor()
 engine = create_engine(
-    'mysql+mysqlconnector://ethgas:station@127.0.0.1:3306/tx', echo=False)
+    "mysql+mysqlconnector://%s:%s@%s:%s/%s" % (
+        get_setting('mysql', 'username'),
+        get_setting('mysql', 'password'),
+        get_setting('mysql', 'hostname'),
+        get_setting('mysql', 'port'),
+        get_setting('mysql', 'database')
+    ), echo=False)
 
 query = ("SELECT * FROM minedtx2")
 cursor.execute(query)
