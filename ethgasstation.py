@@ -23,6 +23,8 @@ from web3 import Web3, HTTPProvider
 # internal libraries
 from egs.egs_ref import *
 from egs.settings import load_settings, get_setting, get_settings_filepath
+from egs.jsonexporter import JSONExporter
+
 import egs.modelparams as modelparams
 
 # load settings from configuration
@@ -36,7 +38,6 @@ if not os.path.isdir(json_output_dir):
     print("WARN: Making directory tree.")
     # attempt to make dirs
     os.makedirs(json_output_dir, exist_ok=True)
-sys.exit(0)
 
 # configure necessary services
 web3 = Web3(
@@ -100,10 +101,9 @@ def write_to_sql(alltx, analyzed_block, block_sumdf, mined_blockdf, block):
     analyzed_block.to_sql(con=engine, name='txpool_current', index=False, if_exists='replace')
     block_sumdf.to_sql(con=engine, name='blockdata2', if_exists='append', index=False)
 
-
 def write_to_json(gprecs, txpool_by_gp, prediction_table, analyzed_block,submitted_hourago=None):
     """write json data"""
-    global json_output_dir
+    exporter = JSONExporter()
 
     try:
         txpool_by_gp = txpool_by_gp.rename(columns={'gas_price':'count'})
@@ -117,29 +117,14 @@ def write_to_json(gprecs, txpool_by_gp, prediction_table, analyzed_block,submitt
         prediction_tableout = prediction_table.to_json(orient='records')
         txpool_by_gpout = txpool_by_gp.to_json(orient='records')
 
-        filepath_gprecs = os.path.join(json_output_dir, 'ethgasAPI.json')
-        filepath_txpool_gp = os.path.join(json_output_dir, 'memPool.json')
-        filepath_prediction_table = os.path.join(json_output_dir, 'predictTable.json')
-        filepath_analyzedblock = os.path.join(json_output_dir, 'txpoolblock.json')
-
-        with open(filepath_gprecs, 'w') as outfile:
-            json.dump(gprecs, outfile)
-
-        with open(filepath_prediction_table, 'w') as outfile:
-            outfile.write(prediction_tableout)
-
-        with open(filepath_txpool_gp, 'w') as outfile:
-            outfile.write(txpool_by_gpout)
-
-        with open(filepath_analyzedblock, 'w') as outfile:
-            outfile.write(analyzed_blockout)
+        exporter.write_json('ethgasAPI', gprecs)
+        exporter.write_json('memPool', txpool_by_gpout)
+        exporter.write_json('predictTable', prediction_tableout)
+        exporter.write_json('txpoolblock', analyzed_blockout)
 
         if not submitted_hourago.empty:
             submitted_hourago = submitted_hourago.to_json(orient='records')
-            filepath_hourago = os.path.join(json_output_dir, '/hourago.json')
-            with open(filepath_hourago, 'w') as outfile:
-                outfile.write(submitted_hourago)
-
+            exporter.write_json('hourago', submitted_hourago)=
 
     except Exception as e:
         print(e)
@@ -296,6 +281,7 @@ def analyze_last200blocks(block, blockdata):
     if np.isnan(avg_timemined):
         avg_timemined = 30
     return(hashpower, avg_timemined, gaslimit, speed)
+
 def analyze_last5blocks(block, alltx):
     recent_blocks= alltx.loc[(alltx['block_mined'] >= (block-5)) & (alltx['block_mined'] <= (block))]
     gp_mined_10th = recent_blocks['gas_price'].quantile(.1)

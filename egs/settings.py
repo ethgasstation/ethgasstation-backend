@@ -2,14 +2,21 @@ import configparser
 import os
 
 parser_instance = None
+settings_loaded = False
+
+def settings_file_loaded():
+    global settings_loaded
+    return settings_loaded is True
 
 def load_settings(settings_file):
     """Load settings from a settings file."""
     global parser_instance
+    global settings_loaded
 
     """Get settings from INI configuration file."""
     parser_instance = configparser.ConfigParser()
     parser_instance.read(settings_file)
+    settings_loaded = True
 
 def get_setting(section, name):
     """Get a setting."""

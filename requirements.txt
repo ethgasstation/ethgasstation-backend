@@ -16,6 +16,7 @@ pylru==1.0.9
 pysha3==1.0.2
 python-dateutil==2.6.1
 pytz==2017.3
+redis==2.10.6
 requests==2.18.4
 rlp==0.6.0
 scipy==1.0.0
