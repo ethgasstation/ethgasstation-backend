@@ -103,6 +103,8 @@ def write_to_sql(alltx, analyzed_block, block_sumdf, mined_blockdf, block):
 
 def write_to_json(gprecs, txpool_by_gp, prediction_table, analyzed_block,submitted_hourago=None):
     """write json data"""
+    global json_output_dir
+
     try:
         txpool_by_gp = txpool_by_gp.rename(columns={'gas_price':'count'})
         txpool_by_gp['gasprice'] = txpool_by_gp['round_gp_10gwei']/10
@@ -115,13 +117,11 @@ def write_to_json(gprecs, txpool_by_gp, prediction_table, analyzed_block,submitt
         prediction_tableout = prediction_table.to_json(orient='records')
         txpool_by_gpout = txpool_by_gp.to_json(orient='records')
 
-        # TODO: abstract these filepaths out to a datastore
-        # The microservice should not assume filesystem information
-        parentdir = os.path.dirname(os.getcwd())
-        filepath_gprecs = parentdir + '/json/ethgasAPI.json'
-        filepath_txpool_gp = parentdir + '/json/memPool.json'
-        filepath_prediction_table = parentdir + '/json/predictTable.json'
-        filepath_analyzedblock = parentdir + '/json/txpoolblock.json'
+        filepath_gprecs = os.path.join(json_output_dir, 'ethgasAPI.json')
+        filepath_txpool_gp = os.path.join(json_output_dir, 'memPool.json')
+        filepath_prediction_table = os.path.join(json_output_dir, 'predictTable.json')
+        filepath_analyzedblock = os.path.join(json_output_dir, 'txpoolblock.json')
+
         with open(filepath_gprecs, 'w') as outfile:
             json.dump(gprecs, outfile)
 
@@ -136,9 +136,10 @@ def write_to_json(gprecs, txpool_by_gp, prediction_table, analyzed_block,submitt
 
         if not submitted_hourago.empty:
             submitted_hourago = submitted_hourago.to_json(orient='records')
-            filepath_hourago = parentdir + '/json/hourago.json'
+            filepath_hourago = os.path.join(json_output_dir, '/hourago.json')
             with open(filepath_hourago, 'w') as outfile:
                 outfile.write(submitted_hourago)
+
 
     except Exception as e:
         print(e)
