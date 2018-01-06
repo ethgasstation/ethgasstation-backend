@@ -29,6 +29,15 @@ import egs.modelparams as modelparams
 settings_file = get_settings_filepath(os.path.dirname(os.path.realpath(__file__)))
 load_settings(settings_file)
 
+json_output_dir = os.path.abspath(get_setting('json', 'output_directory'))
+if not os.path.isdir(json_output_dir):
+    # XXX should be on stderr
+    print("WARN: Could not find output directory %s" % json_output_dir)
+    print("WARN: Making directory tree.")
+    # attempt to make dirs
+    os.makedirs(json_output_dir, exist_ok=True)
+sys.exit(0)
+
 # configure necessary services
 web3 = Web3(
     HTTPProvider(
