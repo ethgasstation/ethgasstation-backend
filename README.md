@@ -23,9 +23,26 @@ need to modify `settings.conf` for your specific environment; some (insecure)
 defaults are set to get you up and running.
 
 The oracle outputs JSON files. These files are stored in the output
-directory specified by the `settings.conf` file. In the future the Oracle
-will support saving JSON blobs to cloud object storage, Redis, MySQL, etc.
+directory specified by the `settings.conf` file. You may output these JSON
+strings to files by setting `json.output_type` to `file` and
+`json.output_location` to a filepath, such as:
 
+```
+[json]
+    output_type = file
+    output_location = ./json
+```
+
+or you may set `json.output_type` to Redis and give a redis connection string:
+
+```
+[json]
+    output_type = redis
+    output_location = http://localhost:6379
+```
+
+Redis password authentication is also supported by adding it to the output
+location string, e.g. `http://:password@localhost:6379/`.
 
 ### Usage
 
