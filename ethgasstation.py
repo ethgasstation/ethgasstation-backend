@@ -574,7 +574,7 @@ def master_control():
             new_tx_list = web3.eth.getFilterChanges(tx_filter.filter_id)
         block = web3.eth.blockNumber
         timestamp = time.time()
-        if (timer.process_block > (block - 5)):
+        if (timer.process_block > (block - 8)):
             for new_tx in new_tx_list:
                 try:
                     tx_obj = web3.eth.getTransaction(new_tx)
