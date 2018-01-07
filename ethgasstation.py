@@ -124,7 +124,7 @@ def write_to_json(gprecs, txpool_by_gp, prediction_table, analyzed_block,submitt
 
         if not submitted_hourago.empty:
             submitted_hourago = submitted_hourago.to_json(orient='records')
-            exporter.write_json('hourago', submitted_hourago)=
+            exporter.write_json('hourago', submitted_hourago)
 
     except Exception as e:
         print(e)
