@@ -30,16 +30,19 @@ def get_setting(section, name):
 def get_settings_filepath(curdir):
     """Find a valid configuration file.
     Order of priority:
-        1. ./settings.conf
-        2. /etc/ethgasstation/settings.conf
-        3. /etc/ethgasstation.conf"""
-    ap = os.path.abspath(curdir)
-    if os.path.isfile(os.path.join(ap, 'settings.conf')):
-        return os.path.join(ap, 'settings.conf')
-    elif os.path.isdir('/etc'):
-        if os.path.isdir('/etc/ethgasstation') and \
-            os.path.isfile('/etc/ethgasstation/settings.conf'):
-            return '/etc/ethgasstation/settings.conf'
-        elif os.path.isfile('/etc/ethgasstation.conf'):
-            return '/etc/ethgasstation.conf'
+        '/etc/ethgasstation/settings.conf'
+        '/etc/ethgasstation.conf'
+        '/etc/default/ethgasstation.conf'
+        '/opt/ethgasstation/settings.conf'
+    """
+    default_ini_locations = [
+        '/etc/ethgasstation/settings.conf',
+        '/etc/ethgasstation.conf',
+        '/etc/default/ethgasstation.conf',
+        '/opt/ethgasstation/settings.conf'
+    ]
+
+    for candidate_location in default_ini_locations:
+        if os.path.isfile(candidate_location):
+            return candidate_location
     raise FileNotFoundError("Cannot find EthGasStation settings file.")
