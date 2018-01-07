@@ -108,13 +108,19 @@ class Timers():
         self.start_block = start_block
         self.current_block = start_block
         self.process_block = start_block
-        self.minlow = 1 #0.1 gwei
+        self.minlow = 10 #1 gwei
         self.block_store = {}
 
     def update_time(self, block):
         self.current_block = block
         self.process_block = self.process_block + 1
 
+    def check_reportblock(self, block):
+        if (block - (self.start_block-1))%50 == 0:
+            print (str(block) + ' ' + str(self.start_block))
+            return True
+        return False
+    
     def add_block(self, block_number, block_time):
         self.block_store[block_number] = block_time
     
@@ -174,4 +180,6 @@ class CleanBlock():
     def to_dataframe(self):
         data = {0:{'block_number':self.block_number, 'gasused':self.gasused, 'miner':self.miner, 'gaslimit':self.gaslimit, 'numtx':self.numtx, 'blockhash':self.blockhash, 'time_mined':self.time_mined, 'mingasprice':self.mingasprice, 'uncsreported':self.uncsreported, 'blockfee':self.blockfee, 'main':self.main, 'uncle':self.uncle, 'speed':self.speed, 'includedblock':self.includedblock}}
         return pd.DataFrame.from_dict(data, orient='index')
+
+
 
