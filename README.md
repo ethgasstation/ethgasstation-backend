@@ -46,5 +46,17 @@ location string, e.g. `http://:password@localhost:6379/`.
 
 ### Usage
 
+To run the script as is on bare metal or a VM, manually:
+
 1. Install requirements using `pip3 install -r requirements.txt`
 2. Run `./ethgasstation.py` or `python3 ethgasstation.py`.
+
+It is also possible to run the oracle as a Docker container.
+
+1. Change the settings in settings.docker.conf.
+2. Run `docker build -t ethgasstation-backend .` from this directory.
+3. Run `docker run ethgasstation-backend:latest`.
+
+In the Docker service, the Python script will dump data to JSON on Redis.
+You will need to update your infrastructure to the internal hostnames
+available for MariaDB, Redis, and geth, respectively.
