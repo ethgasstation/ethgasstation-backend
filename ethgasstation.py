@@ -569,7 +569,6 @@ def master_control():
                 print ('finished ' + str(timer.process_block))
                 timer.process_block = timer.process_block + 1
 
-
 def main():
     """int main"""
     master_control()
