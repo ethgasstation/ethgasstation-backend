@@ -24,7 +24,6 @@ def get_setting(section, name):
 
     if section in parser_instance:
         if name in parser_instance[section]:
-            print(parser_instance[section][name])
             return parser_instance[section][name]
     raise KeyError("Could not find setting %s.%s in configuration." % (section, name))
 
