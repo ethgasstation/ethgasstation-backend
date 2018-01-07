@@ -11,6 +11,6 @@ Note:  you need to create a folder 'json' in the parent directory and then a new
 
 usage:  `python3 gasStationFull.py`
 
-options: '-r' - generates full report for display on website
+options: `-r` - generates full report for display on website
 
 requirements: `pip3 install -r requirements.txt`
