@@ -104,12 +104,6 @@ def predict(row):
 
     try:
         sum1 = (modelparams.INTERCEPT + (row['hashpower_accepting'] * modelparams.HPA_COEF))
-        '''
-        if not np.isnan(row['s5mago']):
-            sum1 = (modelparams.INT2 + (row['hashpower_accepting'] * modelparams.HPA2) + (row['tx_atabove'] * modelparams.TXATAB2) + (row['s5mago'] * modelparams.S5MAGO) + (row['highgas2'] *  modelparams.HIGHGAS2))
-
-        else:
-        '''
         prediction = np.exp(sum1)
         if prediction < 2:
             prediction = 2
@@ -191,7 +185,6 @@ def analyze_nonce(txpool_block, txpool_block_nonce):
 
 def make_predcitiontable (hashpower, hpower, avg_timemined, txpool_by_gp, submitted_5mago, submitted_30mago):
     """makes prediction table for confirmations based on parameters"""
-
     predictTable = pd.DataFrame({'gasprice' :  range(10, 1010, 10)})
     ptable2 = pd.DataFrame({'gasprice' : range(0, 10, 1)})
     predictTable = predictTable.append(ptable2).reset_index(drop=True)
@@ -229,13 +222,14 @@ def make_predcitiontable (hashpower, hpower, avg_timemined, txpool_by_gp, submit
     return (predictTable, txatabove_lookup, gp_lookup, gp_lookup2) 
 
 def get_gasprice_recs(prediction_table, block_time, block, speed, array5m, array30m,  minlow=-1, submitted_5mago=None, submitted_30mago=None):
+    """gets gasprice recommendations from txpool and model estimates"""
+
     def gp_from_txpool(timeframe, calc):
         """calculates the gasprice from the txpool"""
         if timeframe == 'safelow':
             label_df = ['s5mago', 'pct_mined_5m', 'total_seen_5m']
         elif timeframe == 'average':
             label_df = ['s1hago', 'pct_mined_30m', 'total_seen_30m']
-        print(label_df)
         try:
             series = prediction_table.loc[(prediction_table[label_df[0]] <= 5) & (prediction_table[label_df[1]] > 0) & (prediction_table[label_df[2]] > 0), 'gasprice']
             txpool = series.min()
@@ -254,7 +248,7 @@ def get_gasprice_recs(prediction_table, block_time, block, speed, array5m, array
         return (rec, txpool)
 
 
-     def get_safelow():
+    def get_safelow():
         series = prediction_table.loc[prediction_table['hashpower_accepting'] >= 35, 'gasprice']
         safelow_calc = series.min()
         (safelow, safelow_txpool) = gp_from_txpool('safelow', safelow_calc)
@@ -282,7 +276,7 @@ def get_gasprice_recs(prediction_table, block_time, block, speed, array5m, array
             average = minhash_list.min()
         if np.isnan(average):
             average = 500
-         average = float(average)
+        average = float(average)
         average_txpool = float(average_txpool)
         average_calc = float(average_calc)
         return (average, average_calc, average_txpool)
@@ -310,7 +304,8 @@ def get_gasprice_recs(prediction_table, block_time, block, speed, array5m, array
             wait = 0
         wait = round(wait, 1)
         return float(wait)
-    def check_median_last5m (gprec, gparray):
+
+    def check_recent_mediangp (gprec, gparray):
         try:
             median = np.median(gparray)
             if gprec < median:
@@ -327,10 +322,10 @@ def get_gasprice_recs(prediction_table, block_time, block, speed, array5m, array
     gprecs = {}
     (gprecs['safeLow'], gprecs['safelow_calc'], gprecs['safelow_txpool']) = get_safelow()
     array30m = np.append(array30m, gprecs['safeLow'])
-    (gprecs['safeLow'], array30m) = check_median_last5m(gprecs['safeLow'], array30m)
+    (gprecs['safeLow'], array30m) = check_recent_mediangp(gprecs['safeLow'], array30m)
     (gprecs['average'], gprecs['average_calc'], gprecs['average_txpool']) = get_average()
     array5m = np.append(array5m, gprecs['average'])
-    (gprecs['average'], array5m) = check_median_last5m(gprecs['average'], array5m)
+    (gprecs['average'], array5m) = check_recent_mediangp(gprecs['average'], array5m)
     if (gprecs['safeLow'] > gprecs['average']):
         gprecs['safeLow'] = gprecs['average']
         gprecs['safelow_txpool'] = gprecs['average']

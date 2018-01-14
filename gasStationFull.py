@@ -298,7 +298,6 @@ def master_control(report_option):
         if (timer.process_block < block):
                 try:
                     test_filter = web3.eth.uninstallFilter(tx_filter.filter_id)
-                    print(test_filter)
                 except:
                     pass
                 print('current block ' +str(block))
