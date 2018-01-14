@@ -226,12 +226,12 @@ def get_gasprice_recs(prediction_table, block_time, block, speed, array5m, array
 
     def gp_from_txpool(timeframe, calc):
         """calculates the gasprice from the txpool"""
-        if timeframe == 'safelow':
+        if timeframe == 'average':
             label_df = ['s5mago', 'pct_mined_5m', 'total_seen_5m']
-        elif timeframe == 'average':
+        elif timeframe == 'safelow':
             label_df = ['s1hago', 'pct_mined_30m', 'total_seen_30m']
         try:
-            series = prediction_table.loc[(prediction_table[label_df[0]] <= 5) & (prediction_table[label_df[1]] > 0) & (prediction_table[label_df[2]] > 0), 'gasprice']
+            series = prediction_table.loc[(prediction_table[label_df[0]] <= 5) & (prediction_table[label_df[1]] > 20) & (prediction_table[label_df[2]] > 10), 'gasprice']
             txpool = series.min()
             print ('calc value :' + str(calc))
             print ('txpool value :' + str(txpool))
@@ -307,12 +307,12 @@ def get_gasprice_recs(prediction_table, block_time, block, speed, array5m, array
 
     def check_recent_mediangp (gprec, gparray):
         try:
-            median = np.median(gparray)
-            if gprec < median:
-                gprec_m = median
+            pct75 = np.percentile(gparray, 75)
+            if gprec < pct75:
+                gprec_m = np.ceil(pct75)
             else:
                 gprec_m = gprec
-            if gparray.size > 50:
+            if gparray.size > 80:
                 gparray = np.delete(gparray, 0)
         except Exception as e:
             print (e)

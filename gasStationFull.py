@@ -162,10 +162,10 @@ def master_control(report_option):
             (hashpower, block_time, gaslimit, speed) = analyze_last200blocks(block, blockdata)
             hpower2 = analyze_last100blocks(block, alltx)
 
-            submitted_30mago = alltx.loc[(alltx['block_posted'] < (block-60)) & (alltx['block_posted'] > (block-120)) & (alltx['chained']==0) & (alltx['gas_offered'] < 500000)].copy()
+            submitted_30mago = alltx.loc[(alltx['block_posted'] < (block-50)) & (alltx['block_posted'] > (block-120)) & (alltx['chained']==0) & (alltx['gas_offered'] < 500000)].copy()
             print("# of tx submitted ~ an hour ago: " + str((len(submitted_30mago))))
 
-            submitted_5mago = alltx.loc[(alltx['block_posted'] < (block-20)) & (alltx['block_posted'] > (block-70)) & (alltx['chained']==0) & (alltx['gas_offered'] < 500000)].copy()
+            submitted_5mago = alltx.loc[(alltx['block_posted'] < (block-10)) & (alltx['block_posted'] > (block-70)) & (alltx['chained']==0) & (alltx['gas_offered'] < 500000)].copy()
             print("# of tx submitted ~ 5m ago: " + str((len(submitted_5mago))))
 
             if len(submitted_30mago > 50):
