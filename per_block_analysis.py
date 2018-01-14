@@ -70,8 +70,9 @@ def get_tx_atabove(gasprice, txpool_by_gp):
 def check_recent(gasprice, submitted_recent):
     """gets the %of transactions unmined submitted in recent blocks"""
     
-    #prevent false positive delays
+    #set this to avoid false positive delays
     submitted_recent.loc[(submitted_recent['still_here'] >= 1) & (submitted_recent['still_here'] <= 2) & (submitted_recent['total'] < 4), 'pct_unmined'] = np.nan
+    
     maxval = submitted_recent.loc[submitted_recent.index > gasprice, 'pct_unmined'].max()    
     if gasprice in submitted_recent.index:
         stillh = submitted_recent.get_value(gasprice, 'still_here')
@@ -86,13 +87,6 @@ def check_recent(gasprice, submitted_recent):
     if (rval > maxval) or (gasprice >= 1000) :
         return rval
     return maxval
-
-def get_recent_value(gasprice, submitted_recent, col):
-    if gasprice in submitted_recent.index:
-        rval = submitted_recent.get_value(gasprice, col)
-    else:
-        rval = 0
-    return rval
 
 
 def predict(row):
@@ -206,15 +200,11 @@ def make_predcitiontable (hashpower, hpower, avg_timemined, txpool_by_gp, submit
         txatabove_lookup = None
     if not submitted_5mago.empty:
         predictTable['s5mago'] = predictTable['gasprice'].apply(check_recent, args= (submitted_5mago,))
-        predictTable['pct_mined_5m'] =  predictTable['gasprice'].apply(get_recent_value, args=(submitted_5mago, 'pct_mined'))
-        predictTable['total_seen_5m'] =  predictTable['gasprice'].apply(get_recent_value, args=(submitted_5mago, 'total'))
         s5mago_lookup = predictTable.set_index('gasprice')['s5mago'].to_dict()
     else:
         s5mago_lookup = None
     if not submitted_30mago.empty:
         predictTable['s1hago'] = predictTable['gasprice'].apply(check_recent, args= (submitted_30mago,))
-        predictTable['pct_mined_30m'] = predictTable['gasprice'].apply(get_recent_value, args=(submitted_30mago, 'pct_mined'))
-        predictTable['total_seen_30m'] = predictTable['gasprice'].apply(get_recent_value, args=(submitted_30mago, 'total'))
         s1hago_lookup = predictTable.set_index('gasprice')['s1hago'].to_dict()
     else:
         s1hago_lookup = None
@@ -226,68 +216,55 @@ def make_predcitiontable (hashpower, hpower, avg_timemined, txpool_by_gp, submit
 
     return (predictTable, txatabove_lookup, gp_lookup, gp_lookup2) 
 
-def get_gasprice_recs(prediction_table, block_time, block, speed, array5m, array30m,  minlow=-1, submitted_5mago=None, submitted_30mago=None):
-
+def get_gasprice_recs(prediction_table, block_time, block, speed, minlow=-1, submitted_5mago=None, submitted_30mago=None):
     
-    def get_safelow():
-        series = prediction_table.loc[prediction_table['hashpower_accepting'] >= 35, 'gasprice']
-        safelow_calc = series.min()
-        safelow = safelow_calc
+    def get_safelow(minlow, submitted_30mago):
+        series = prediction_table.loc[prediction_table['expectedTime'] <= 30, 'gasprice']
+        safelow = series.min()
         try:
-            series2 = prediction_table.loc[(prediction_table['s1hago'] <= 5) & (prediction_table['pct_mined_30m'] > 0) & (prediction_table['total_seen_30m'] > 0), 'gasprice']
-            safelow_txpool = series2.min()
-            print ('calc safelow value :' + str(safelow_calc))
-            print ('txpool safelow value :' + str(safelow_txpool))
-            if (safelow_txpool < safelow_calc):
-                safelow = safelow_txpool
-            elif (safelow_txpool > safelow_calc) and (prediction_table.loc[prediction_table['gasprice'] == (safelow_txpool - 10), 's5mago'].values[0] > 15):
-                safelow = safelow_txpool               
-        except Exception as e:
-            safelow_txpool = np.nan
-            print(e)
-        minhash_list = prediction_table.loc[prediction_table['hashpower_accepting']>=10, 'gasprice']
+            series2 = prediction_table.loc[prediction_table['s1hago'] <= 5, 'gasprice']
+            mined = series2.min()
+            print(mined)
+            if mined < safelow:
+                safelow = mined
+        except:
+            pass
+        minhash_list = prediction_table.loc[prediction_table['hashpower_accepting']>=15, 'gasprice']
         if (safelow < minhash_list.min()):
             safelow = minhash_list.min()
         if minlow >= 0:
             if safelow < minlow:
                 safelow = minlow
-        safelow = float(safelow)
-        safelow_txpool = float(safelow_txpool)
-        safelow_calc = float(safelow_calc)
-        return (safelow, safelow_calc, safelow_txpool)
+        
+        return float(safelow)
 
-    def get_average():
-        series = prediction_table.loc[prediction_table['hashpower_accepting'] >= 60, 'gasprice']
-        average_calc = series.min()
-        average = average_calc
+    def get_average(safelow):
+        series = prediction_table.loc[prediction_table['expectedTime'] <= 5, 'gasprice']
+        average = series.min()
         try:
-            series2 = prediction_table.loc[(prediction_table['s5mago'] <= 5) & (prediction_table['pct_mined_5m'] > 0) & (prediction_table['total_seen_5m'] > 0), 'gasprice']
-            average_txpool = series2.min()
-            print ('calc average value :' + str(average_calc))
-            print ('txpool average value :' + str(average_txpool))
-            if (average_txpool < average_calc):
-                average = average_txpool
-            elif (average_txpool > average_calc) and (prediction_table.loc[prediction_table['gasprice'] == (average_txpool - 10), 's1hago'].values[0] > 15):
-                average = average_txpool
-                
-        except Exception as e:
-            average_txpool = np.nan
-            print (e)
+            series2 = prediction_table.loc[prediction_table['s5mago'] <= 5, 'gasprice']
+            mined = series2.min()
+            print(mined)
+            if mined < average:
+                average = mined
+        except:
             pass
 
         minhash_list = prediction_table.loc[prediction_table['hashpower_accepting']>25, 'gasprice']
         if average < minhash_list.min():
             average = minhash_list.min()
+        if average < safelow:
+            average = safelow
         if np.isnan(average):
             average = 500
-        average = float(average)
-        average_txpool = float(average_txpool)
-        average_calc = float(average_calc)
-        return (average, average_calc, average_txpool)
+        return float(average)
 
     def get_fast():
-        series = prediction_table.loc[prediction_table['hashpower_accepting'] >= 90, 'gasprice']
+        series = prediction_table.loc[prediction_table['expectedTime'] <= 1, 'gasprice']
         fastest = series.min()
+        minhash_list = prediction_table.loc[prediction_table['hashpower_accepting']>90, 'gasprice']
+        if fastest < minhash_list.min():
+            fastest = minhash_list.min()
         if np.isnan(fastest):
             fastest = 1000
         return float(fastest)
@@ -308,34 +285,11 @@ def get_gasprice_recs(prediction_table, block_time, block, speed, array5m, array
             wait = 0
         wait = round(wait, 1)
         return float(wait)
-
-    def check_median_last5m (gprec, gparray):
-        try:
-            median = np.median(gparray)
-            if gprec < median:
-                gprec_m = median
-            else:
-                gprec_m = gprec
-            if gparray.size > 50:
-                gparray = np.delete(gparray, 0)
-        except Exception as e:
-            print (e)
-            gprec_m = gprec
-        return (gprec_m, gparray)
     
     gprecs = {}
-    (gprecs['safeLow'], gprecs['safelow_calc'], gprecs['safelow_txpool']) = get_safelow()
-    array30m = np.append(array30m, gprecs['safeLow'])
-    (gprecs['safeLow'], array30m) = check_median_last5m(gprecs['safeLow'], array30m)
-    (gprecs['average'], gprecs['average_calc'], gprecs['average_txpool']) = get_average()
-    array5m = np.append(array5m, gprecs['average'])
-    (gprecs['average'], array5m) = check_median_last5m(gprecs['average'], array5m)
-
-    if (gprecs['safeLow'] > gprecs['average']):
-        gprecs['safeLow'] = gprecs['average']
-        gprecs['safelow_txpool'] = gprecs['average']
-
+    gprecs['safeLow'] = get_safelow(minlow, submitted_30mago)
     gprecs['safeLowWait'] = get_wait(gprecs['safeLow'])
+    gprecs['average'] = get_average(gprecs['safeLow'])
     gprecs['avgWait'] = get_wait(gprecs['average'])
     gprecs['fast'] = get_fast()
     gprecs['fastWait'] = get_wait(gprecs['fast'])
@@ -344,8 +298,7 @@ def get_gasprice_recs(prediction_table, block_time, block, speed, array5m, array
     gprecs['block_time'] = block_time
     gprecs['blockNum'] = block
     gprecs['speed'] = speed
-
-    return(gprecs, array5m, array30m)
+    return(gprecs)
 
 def make_recent_blockdf(recentdf, current_txpool, alltx):
     '''creates df for monitoring recentlymined tx'''
@@ -366,7 +319,7 @@ def make_recent_blockdf(recentdf, current_txpool, alltx):
 
 
 
-def analyze_txpool(block, txpool_block, hashpower, hpower, avg_timemined, gaslimit, txatabove_lookup, gp_lookup, gp_lookup2, gprecs):
+def analyze_txpool(block, txpool_block, hashpower, hpower, avg_timemined, gaslimit, txatabove_lookup, gp_lookup, gp_lookup2):
     """calculate data for transactions in the txpoolblock"""
     txpool_block = txpool_block.loc[txpool_block['block_posted']==block].copy()
     txpool_block['pct_limit'] = txpool_block['gas_offered'].apply(lambda x: x / gaslimit)
@@ -378,8 +331,4 @@ def analyze_txpool(block, txpool_block, hashpower, hpower, avg_timemined, gaslim
         txpool_block['tx_atabove'] = txpool_block['round_gp_10gwei'].apply(lambda x: txatabove_lookup[x] if x in txatabove_lookup else 1)
     txpool_block['expectedWait'] = txpool_block.apply(predict, axis=1)
     txpool_block['expectedTime'] = txpool_block['expectedWait'].apply(lambda x: np.round((x * avg_timemined / 60), decimals=2))
-    txpool_block['safelow_calc'] = gprecs['safelow_calc']
-    txpool_block['safelow_txpool'] = gprecs['safelow_txpool']
-    txpool_block['average_calc'] = gprecs['average_calc']
-    txpool_block['average_txpool'] = gprecs['average_txpool']
     return(txpool_block)
