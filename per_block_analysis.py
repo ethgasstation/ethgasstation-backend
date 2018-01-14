@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import traceback
 from web3 import Web3, HTTPProvider
 web3 = Web3(HTTPProvider('http://localhost:8545'))
 from egs import *
@@ -71,8 +72,7 @@ def check_recent(gasprice, submitted_recent):
     """gets the %of transactions unmined submitted in recent blocks"""
     
     #set this to avoid false positive delays
-    submitted_recent.loc[(submitted_recent['still_here'] >= 1) & (submitted_recent['still_here'] <= 2) & (submitted_recent['total'] < 4), 'pct_unmined'] = np.nan
-    
+    submitted_recent.loc[(submitted_recent['still_here'] >= 1) & (submitted_recent['still_here'] <= 2) & (submitted_recent['total'] < 4), 'pct_unmined'] = np.nan 
     maxval = submitted_recent.loc[submitted_recent.index > gasprice, 'pct_unmined'].max()    
     if gasprice in submitted_recent.index:
         stillh = submitted_recent.get_value(gasprice, 'still_here')
@@ -87,6 +87,14 @@ def check_recent(gasprice, submitted_recent):
     if (rval > maxval) or (gasprice >= 1000) :
         return rval
     return maxval
+
+def get_recent_value(gasprice, submitted_recent, col):
+    """gets values from recenttx df for prediction table"""
+    if gasprice in submitted_recent.index:
+        rval = submitted_recent.get_value(gasprice, col)
+    else:
+        rval = 0
+    return rval
 
 
 def predict(row):
