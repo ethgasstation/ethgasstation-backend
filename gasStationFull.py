@@ -51,15 +51,14 @@ def prune_data(blockdata, alltx, txpool, block):
     txpool = txpool.loc[txpool['block'] > (block-10)]
     return (blockdata, alltx, txpool)
 
-def write_to_sql(alltx, analyzed_block, block_sumdf, mined_blockdf, block):
+def write_to_sql(alltx, block_sumdf, mined_blockdf, block):
     """write data to mysql for analysis"""
     post = alltx[alltx.index.isin(mined_blockdf.index)]
     post.to_sql(con=engine, name='minedtx2', if_exists='append', index=True)
     print ('num mined = ' + str(len(post)))
-    post2 = alltx.loc[alltx['block_posted'] == (block-1)]
+    post2 = alltx.loc[alltx['block_posted'] == (block)]
     post2.to_sql(con=engine, name='postedtx2', if_exists='append', index=True)
     print ('num posted = ' + str(len(post2)))
-    analyzed_block.to_sql(con=engine, name='txpool_current', index=False, if_exists='replace')
     block_sumdf.to_sql(con=engine, name='blockdata2', if_exists='append', index=False)
 
 def write_report(report, top_miners, price_wait, miner_txdata, gasguzz, lowprice):
@@ -94,42 +93,22 @@ def write_report(report, top_miners, price_wait, miner_txdata, gasguzz, lowprice
     except Exception as e:
         print(e)
 
-def write_to_json(gprecs, txpool_by_gp, prediction_table, analyzed_block, submitted_hourago=None):
+def write_to_json(gprecs, prediction_table=pd.DataFrame()):
     """write json data"""
     try:
-        txpool_by_gp = txpool_by_gp.rename(columns={'gas_price':'count'})
-        txpool_by_gp['gasprice'] = txpool_by_gp['round_gp_10gwei']/10
-        prediction_table['gasprice'] = prediction_table['gasprice']/10
-        analyzed_block_show  = analyzed_block.loc[analyzed_block['chained']==0].copy()
-        analyzed_block_show['gasprice'] = analyzed_block_show['round_gp_10gwei']/10
-        analyzed_block_show = analyzed_block_show[['index', 'block_posted', 'gas_offered', 'gasprice', 'hashpower_accepting', 'tx_atabove', 'mined_probability', 'expectedWait', 'wait_blocks']].sort_values('wait_blocks', ascending=False)
-        
-        analyzed_blockout = analyzed_block_show.to_json(orient='records')
-        prediction_tableout = prediction_table.to_json(orient='records')
-        txpool_by_gpout = txpool_by_gp.to_json(orient='records')
         parentdir = os.path.dirname(os.getcwd())
+        if not prediction_table.empty:
+            prediction_table['gasprice'] = prediction_table['gasprice']/10
+            prediction_tableout = prediction_table.to_json(orient='records')
+            filepath_prediction_table = parentdir + '/json/predictTable.json'
+            with open(filepath_prediction_table, 'w') as outfile:
+                outfile.write(prediction_tableout)
+
         filepath_gprecs = parentdir + '/json/ethgasAPI.json'
-        filepath_txpool_gp = parentdir + '/json/memPool.json'
-        filepath_prediction_table = parentdir + '/json/predictTable.json'
-        filepath_analyzedblock = parentdir + '/json/txpoolblock.json'
-        
         with open(filepath_gprecs, 'w') as outfile:
             json.dump(gprecs, outfile)
 
-        with open(filepath_prediction_table, 'w') as outfile:
-            outfile.write(prediction_tableout)
-
-        with open(filepath_txpool_gp, 'w') as outfile:
-            outfile.write(txpool_by_gpout)
-
-        with open(filepath_analyzedblock, 'w') as outfile:
-            outfile.write(analyzed_blockout)
-
-        if not submitted_hourago.empty:
-            submitted_hourago = submitted_hourago.to_json(orient='records')
-            filepath_hourago = parentdir + '/json/hourago.json'
-            with open(filepath_hourago, 'w') as outfile:
-                outfile.write(submitted_hourago)
+        
 
     
     except Exception as e:
@@ -143,7 +122,8 @@ def master_control(report_option):
     print ('txcount '+ str(len(alltx)))
     timer = Timers(web3.eth.blockNumber)  
     start_time = time.time()
-    tx_filter = web3.eth.filter('pending')
+    first_cycle = True
+    analyzed = 0
 
     
     def append_new_tx(clean_tx):
@@ -158,6 +138,7 @@ def master_control(report_option):
         nonlocal txpool
         nonlocal blockdata
         nonlocal timer
+        got_txpool = 1
 
         print('updating dataframes at block '+ str(block))
         try:
@@ -165,7 +146,7 @@ def master_control(report_option):
             mined_block_num = block-3
             (mined_blockdf, block_obj) = process_block_transactions(mined_block_num)
 
-            #add mined data to tx dataframe - only unique hashes seen by node
+            #add mined data to tx dataframe 
             mined_blockdf_seen = mined_blockdf[mined_blockdf.index.isin(alltx.index)]
             print('num mined in ' + str(mined_block_num)+ ' = ' + str(len(mined_blockdf)))
             print('num seen in ' + str(mined_block_num)+ ' = ' + str(len(mined_blockdf_seen)))
@@ -177,47 +158,62 @@ def master_control(report_option):
             #add block data to block dataframe 
             blockdata = blockdata.append(block_sumdf, ignore_index = True)
 
-            #get list of txhashes from txpool 
-            current_txpool = get_txhases_from_txpool(block)
-
-            #add txhashes to txpool dataframe
-            txpool = txpool.append(current_txpool, ignore_index = False)
-
             #get hashpower table, block interval time, gaslimit, speed from last 200 blocks
             (hashpower, block_time, gaslimit, speed) = analyze_last200blocks(block, blockdata)
             hpower2 = analyze_last100blocks(block, alltx)
 
-            submitted_hourago = alltx.loc[(alltx['block_posted'] < (block-130)) & (alltx['block_posted'] > (block-260)) & (alltx['chained']==0) & (alltx['gas_offered'] < 500000)].copy()
-            print("# of tx submitted ~ an hour ago: " + str((len(submitted_hourago))))
+            submitted_30mago = alltx.loc[(alltx['block_posted'] < (block-60)) & (alltx['block_posted'] > (block-120)) & (alltx['chained']==0) & (alltx['gas_offered'] < 500000)].copy()
+            print("# of tx submitted ~ an hour ago: " + str((len(submitted_30mago))))
 
             submitted_5mago = alltx.loc[(alltx['block_posted'] < (block-20)) & (alltx['block_posted'] > (block-70)) & (alltx['chained']==0) & (alltx['gas_offered'] < 500000)].copy()
             print("# of tx submitted ~ 5m ago: " + str((len(submitted_5mago))))
 
-            if len(submitted_hourago > 50):
-                submitted_hourago = make_recent_blockdf(submitted_hourago, current_txpool)
+            if len(submitted_30mago > 50):
+                submitted_30mago = make_recent_blockdf(submitted_30mago, current_txpool, alltx)
             else:
-                submitted_hourago = pd.DataFrame()
+                submitted_30mago = pd.DataFrame()
 
             if len(submitted_5mago > 50):
-                submitted_5mago = make_recent_blockdf(submitted_5mago, current_txpool)
+                submitted_5mago = make_recent_blockdf(submitted_5mago, current_txpool, alltx)
             else:
                 submitted_5mago = pd.DataFrame()
 
             #make txpool block data
-            (analyzed_block, txpool_by_gp, predictiondf) = analyze_txpool(block-1, txpool, alltx, hashpower, block_time, gaslimit, submitted_5mago, submitted_hourago, hpower2)
-            if analyzed_block.empty:
-                print("txpool block is empty - returning")
-                return
-            assert analyzed_block.index.duplicated().sum()==0
-            alltx = alltx.combine_first(analyzed_block)
-
+            txpool_block = make_txpool_block(block, txpool, alltx)
             
+            if not txpool_block.empty: 
+                #new dfs grouped by gasprice and nonce
+                txpool_by_gp = txpool_block[['gas_price', 'round_gp_10gwei']].groupby('round_gp_10gwei').agg({'gas_price':'count'})
+                txpool_block_nonce = txpool_block[['from_address', 'nonce']].groupby('from_address').agg({'nonce':'min'})
+                txpool_block = analyze_nonce(txpool_block, txpool_block_nonce)
+            else:
+                txpool_by_gp = pd.DataFrame()
+                txpool_block_nonce = pd.DataFrame()
+                txpool_block = alltx.loc[alltx['block_posted']==block]
+                got_txpool = 0
 
+            #make prediction table and create lookups to speed txpool analysis
+            (predictiondf, txatabove_lookup, gp_lookup, gp_lookup2) = make_predcitiontable(hashpower, hpower2, block_time, txpool_by_gp, submitted_5mago, submitted_30mago)
+
+            #with pd.option_context('display.max_rows', None,):
+                #print(predictiondf)
+
+            #make the gas price recommendations
+            (gprecs, timer.gp_avg_store, timer.gp_safelow_store) = get_gasprice_recs (predictiondf, block_time, block, speed, timer.gp_avg_store, timer.gp_safelow_store, timer.minlow, submitted_5mago, submitted_30mago)
+
+            #create the txpool block data
+            #first, add txs submitted if empty
+
+            try:
+                if txpool_block.notnull:
+                    analyzed_block = analyze_txpool(block, txpool_block, hashpower, hpower2, block_time, gaslimit, txatabove_lookup, gp_lookup, gp_lookup2, gprecs)
+                    #update alltx 
+                    alltx = alltx.combine_first(analyzed_block)
+            except:
+                pass
+                
             #with pd.option_context('display.max_columns', None,):
                 #print(analyzed_block)
-
-            #get gpRecs
-            gprecs = get_gasprice_recs (predictiondf, block_time, block, speed, timer.minlow, submitted_hourago)
 
             #make summary report every x blocks
             #this is only run if generating reports for website
@@ -233,12 +229,13 @@ def master_control(report_option):
 
 
             #every block, write gprecs, predictions, txpool by gasprice
-            analyzed_block.reset_index(drop=False, inplace=True)
-            if not submitted_hourago.empty:
-                submitted_hourago.reset_index(drop=False, inplace=True)
-                submitted_hourago = submitted_hourago.sort_values('round_gp_10gwei')
-            write_to_json(gprecs, txpool_by_gp, predictiondf, analyzed_block, submitted_hourago)
-            write_to_sql(alltx, analyzed_block, block_sumdf, mined_blockdf, block)
+
+            if got_txpool:
+                write_to_json(gprecs, predictiondf)
+            else:
+                write_to_json(gprecs)
+
+            write_to_sql(alltx, block_sumdf, mined_blockdf, block)
 
             #keep from getting too large
             (blockdata, alltx, txpool) = prune_data(blockdata, alltx, txpool, block)
@@ -250,11 +247,25 @@ def master_control(report_option):
     
     while True:
         try:
+            block = web3.eth.blockNumber
+            if first_cycle == True and block != analyzed:
+                analyzed = block
+                tx_filter = web3.eth.filter('pending')
+                #get list of txhashes from txpool
+                print("getting txpool hashes at block " +str(block) +" ...") 
+                current_txpool = get_txhases_from_txpool(block)
+                #add txhashes to txpool dataframe
+                print("done. length = " +str(len(current_txpool)))
+                txpool = txpool.append(current_txpool, ignore_index = False)
+        except:
+            pass
+             
+        try:
             new_tx_list = web3.eth.getFilterChanges(tx_filter.filter_id)
         except:
             tx_filter = web3.eth.filter('pending')
             new_tx_list = web3.eth.getFilterChanges(tx_filter.filter_id)
-        block = web3.eth.blockNumber
+        
         timestamp = time.time()
 
         #this can be adjusted depending on how fast your server is
@@ -281,14 +292,21 @@ def master_control(report_option):
                 append_new_tx(clean_tx)
             except Exception as e:
                 pass
+
+        first_cycle = False
         
         if (timer.process_block < block):
-            if block > timer.start_block+1:
+                try:
+                    test_filter = web3.eth.uninstallFilter(tx_filter.filter_id)
+                    print(test_filter)
+                except:
+                    pass
                 print('current block ' +str(block))
                 print ('processing block ' + str(timer.process_block))
                 updated = update_dataframes(timer.process_block)
                 print ('finished ' + str(timer.process_block) + "\n")
                 timer.process_block = timer.process_block + 1
+                first_cycle = True
         
         if (timer.process_block < (block - 8)):
                 print("skipping ahead \n")

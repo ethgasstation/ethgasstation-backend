@@ -59,13 +59,19 @@ class SummaryReport():
 
         """ETH price data"""
         url = "https://min-api.cryptocompare.com/data/price?fsym=ETH&tsyms=USD,EUR,GBP,CNY"
-        with urllib.request.urlopen(url) as response:
-            pricesRaw = json.loads(response.read().decode())
-        ethPricesTable = pd.DataFrame.from_dict(pricesRaw, orient='index')
-        self.post['ETHpriceUSD'] = int(ethPricesTable.loc['USD', 0])
-        self.post['ETHpriceEUR'] = int(ethPricesTable.loc['EUR', 0])
-        self.post['ETHpriceCNY'] = int(ethPricesTable.loc['CNY', 0])
-        self.post['ETHpriceGBP'] = int(ethPricesTable.loc['GBP', 0])
+        try:
+            with urllib.request.urlopen(url, timeout=3) as response:
+                pricesRaw = json.loads(response.read().decode())
+            ethPricesTable = pd.DataFrame.from_dict(pricesRaw, orient='index')
+            self.post['ETHpriceUSD'] = int(ethPricesTable.loc['USD', 0])
+            self.post['ETHpriceEUR'] = int(ethPricesTable.loc['EUR', 0])
+            self.post['ETHpriceCNY'] = int(ethPricesTable.loc['CNY', 0])
+            self.post['ETHpriceGBP'] = int(ethPricesTable.loc['GBP', 0])
+        except:
+            self.post['ETHpriceUSD'] = 0
+            self.post['ETHpriceEUR'] = 0
+            self.post['ETHpriceCNY'] = 0
+            self.post['ETHpriceGBP'] = 0
     
         """find minimum gas price with at least 50 transactions mined"""
         tx_grouped_price = self.tx_df[['block_posted', 'minedGasPrice']].groupby('minedGasPrice').count()

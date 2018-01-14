@@ -43,6 +43,10 @@ class Mined_Sql(Base):
     wait_blocks = Column(Integer)
     chained = Column(Integer)
     nonce = Column(Integer)
+    average_calc = Column(Integer)
+    average_txpool = Column(Integer)
+    safelow_calc = Column(Integer)
+    safelow_txpool = Column(Integer)
 
 class Tx_Sql(Base):
     """mysql schema for posted transaction"""
@@ -79,6 +83,10 @@ class Tx_Sql(Base):
     wait_blocks = Column(Integer)
     nonce = Column(Integer)
     chained = Column(Integer)
+    average_calc = Column(Integer)
+    average_txpool = Column(Integer)
+    safelow_calc = Column(Integer)
+    safelow_txpool = Column(Integer)
 
 class Block_Data(Base):
     """mysql schema for block database"""
@@ -109,7 +117,8 @@ class Timers():
         self.current_block = start_block
         self.process_block = start_block
         self.minlow = 10 #1 gwei
-        self.block_store = {}
+        self.gp_avg_store = np.array([])
+        self.gp_safelow_store = np.array([])
 
     def update_time(self, block):
         self.current_block = block
