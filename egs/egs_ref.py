@@ -5,13 +5,11 @@ Utility functions, MySQL Schemas, and other such architecture
 for the EthGasStation adaptive oracle.
 """
 
-import json
-import time
-import urllib
-
-import numpy as np
 import pandas as pd
-
+import numpy as np
+import json
+import urllib
+import time
 from sqlalchemy import create_engine, Column, Integer, String, DECIMAL, BigInteger
 from sqlalchemy.ext.declarative import declarative_base
 
@@ -52,6 +50,10 @@ class Mined_Sql(Base):
     wait_blocks = Column(Integer)
     chained = Column(Integer)
     nonce = Column(Integer)
+    average_calc = Column(Integer)
+    average_txpool = Column(Integer)
+    safelow_calc = Column(Integer)
+    safelow_txpool = Column(Integer)
 
 class Tx_Sql(Base):
     """mysql schema for posted transaction"""
@@ -88,6 +90,10 @@ class Tx_Sql(Base):
     wait_blocks = Column(Integer)
     nonce = Column(Integer)
     chained = Column(Integer)
+    average_calc = Column(Integer)
+    average_txpool = Column(Integer)
+    safelow_calc = Column(Integer)
+    safelow_txpool = Column(Integer)
 
 class Block_Data(Base):
     """mysql schema for block database"""
@@ -108,7 +114,7 @@ class Block_Data(Base):
     main = Column(Integer)
     block_number = Column(Integer)
 
-class Timers(object):
+class Timers():
     """
     class to keep track of time relative to network block
     also tracks low mined price from reports
@@ -117,20 +123,27 @@ class Timers(object):
         self.start_block = start_block
         self.current_block = start_block
         self.process_block = start_block
-        self.minlow = 1 #0.1 gwei
-        self.block_store = {}
+        self.minlow = 10 #1 gwei
+        self.gp_avg_store = np.array([])
+        self.gp_safelow_store = np.array([])
 
     def update_time(self, block):
         self.current_block = block
         self.process_block = self.process_block + 1
 
+    def check_reportblock(self, block):
+        if (block - (self.start_block-1))%50 == 0:
+            print (str(block) + ' ' + str(self.start_block))
+            return True
+        return False
+    
     def add_block(self, block_number, block_time):
         self.block_store[block_number] = block_time
-
+    
     def read_block_time(self, block_number):
         return self.block_store.pop(block_number, None)
 
-class CleanTx(object):
+class CleanTx():
     """transaction object / methods for pandas"""
     def __init__(self, tx_obj, block_posted=None, time_posted=None, miner=None):
         self.hash = tx_obj.hash
@@ -162,7 +175,7 @@ class CleanTx(object):
             gp = 0
         self.gp_10gwei = gp
 
-class CleanBlock(object):
+class CleanBlock():
     """block object/methods for pandas"""
     def __init__(self, block_obj, main, uncle, timemined, mingasprice=None, numtx = None, weightedgp=None, includedblock=None):
         self.block_number = block_obj.number 
@@ -179,8 +192,10 @@ class CleanBlock(object):
         self.uncle = uncle
         self.includedblock = includedblock
         self.speed = self.gasused / self.gaslimit
-
+    
     def to_dataframe(self):
         data = {0:{'block_number':self.block_number, 'gasused':self.gasused, 'miner':self.miner, 'gaslimit':self.gaslimit, 'numtx':self.numtx, 'blockhash':self.blockhash, 'time_mined':self.time_mined, 'mingasprice':self.mingasprice, 'uncsreported':self.uncsreported, 'blockfee':self.blockfee, 'main':self.main, 'uncle':self.uncle, 'speed':self.speed, 'includedblock':self.includedblock}}
         return pd.DataFrame.from_dict(data, orient='index')
+
+
 
