@@ -255,7 +255,7 @@ def master_control(report_option):
                 tx_filter = web3.eth.filter('pending')
                 #get list of txhashes from txpool
                 print("getting txpool hashes at block " +str(block) +" ...")
-                current_txpool = get_txhases_from_txpool(block)
+                current_txpool = get_txhashes_from_txpool(block)
                 #add txhashes to txpool dataframe
                 print("done. length = " +str(len(current_txpool)))
                 txpool = txpool.append(current_txpool, ignore_index = False)

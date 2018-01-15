@@ -7,7 +7,7 @@ import modelparams
 
 web3 = egs.settings.get_web3_provider()
 
-def get_txhases_from_txpool(block):
+def get_txhashes_from_txpool(block):
     """gets list of all txhash in txpool at block and returns dataframe"""
     hashlist = []
     try:
