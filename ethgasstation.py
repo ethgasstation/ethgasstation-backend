@@ -1,3 +1,9 @@
+#!/usr/bin/env python3
+"""
+    ETH Gas Station
+    Primary backend.
+"""
+
 import time
 import sys
 import json
@@ -7,35 +13,30 @@ import os
 import random
 import pandas as pd
 import numpy as np
-from web3 import Web3, HTTPProvider
+
+import egs.settings
+
 from sqlalchemy import create_engine, Column, Integer, String, DECIMAL, BigInteger, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
-from egs import *
+
+from egs.egs_ref import *
+from egs.jsonexporter import JSONExporter, JSONExporterException
 from per_block_analysis import *
 from report_generator import *
 
 # configure necessary services
-web3 = Web3(
-    HTTPProvider(
-        "%s://%s:%s" % (
-            get_setting('geth', 'protocol'),
-            get_setting('geth', 'hostname'),
-            get_setting('geth', 'port'))))
+settings_file = egs.settings.get_settings_filepath(os.path.dirname(os.path.realpath(__file__)))
+egs.settings.load_settings(settings_file)
 
-connstr = "mysql+mysqlconnector://%s:%s@%s:%s/%s" % (
-        get_setting('mysql', 'username'),
-        get_setting('mysql', 'password'),
-        get_setting('mysql', 'hostname'),
-        get_setting('mysql', 'port'),
-        get_setting('mysql', 'database')
-    )
+exporter = JSONExporter()
+web3 = egs.settings.get_web3_provider()
+connstr = egs.settings.get_mysql_connstr()
 engine = create_engine(connstr, echo=False)
 Base.metadata.create_all(engine)
 Session = sessionmaker(bind=engine)
 session = Session()
 
-   
 
 def init_dfs():
     """load data from mysql"""
@@ -76,6 +77,8 @@ def write_to_sql(alltx, block_sumdf, mined_blockdf, block):
 
 def write_report(report, top_miners, price_wait, miner_txdata, gasguzz, lowprice):
     """write json data"""
+    global exporter
+
     parentdir = os.path.dirname(os.getcwd())
     top_minersout = top_miners.to_json(orient='records')
     minerout = miner_txdata.to_json(orient='records')
@@ -90,61 +93,47 @@ def write_report(report, top_miners, price_wait, miner_txdata, gasguzz, lowprice
     filepath_lowpriceout = parentdir + '/json/validated.json'
 
     try:
-        with open(filepath_report, 'w') as outfile:
-            json.dump(report, outfile, allow_nan=False)
-        with open(filepath_tminers, 'w') as outfile:
-            outfile.write(top_minersout)
-        with open(filepath_pwait, 'w') as outfile:
-            outfile.write(price_waitout)
-        with open(filepath_minerout, 'w') as outfile:
-            outfile.write(minerout)
-        with open(filepath_gasguzzout, 'w') as outfile:
-            outfile.write(gasguzzout)
-        with open(filepath_lowpriceout, 'w') as outfile:
-            outfile.write(lowpriceout)
-
+        exporter.write_json('txDataLast10k', report)
+        exporter.write_json('topMiners', top_minersout)
+        exporter.write_json('priceWait', price_waitout)
+        exporter.write_json('miners', minerout)
+        exporter.write_json('gasguzz', gasguzzout)
+        exporter.write_json('validated', lowpriceout)
     except Exception as e:
         print(e)
 
 def write_to_json(gprecs, prediction_table=pd.DataFrame()):
     """write json data"""
+    global exporter
     try:
         parentdir = os.path.dirname(os.getcwd())
         if not prediction_table.empty:
             prediction_table['gasprice'] = prediction_table['gasprice']/10
             prediction_tableout = prediction_table.to_json(orient='records')
             filepath_prediction_table = parentdir + '/json/predictTable.json'
-            with open(filepath_prediction_table, 'w') as outfile:
-                outfile.write(prediction_tableout)
+            exporter.write_json('predictTable', prediction_tableout)
 
         filepath_gprecs = parentdir + '/json/ethgasAPI.json'
-        with open(filepath_gprecs, 'w') as outfile:
-            json.dump(gprecs, outfile)
-
-        
-
-    
+        exporter.write_json('ethgasAPI', gprecs)
     except Exception as e:
         print(e)
-    
+
 def master_control(report_option):
     (blockdata, alltx) = init_dfs()
     txpool = pd.DataFrame()
     snapstore = pd.DataFrame()
     print ('blocks '+ str(len(blockdata)))
     print ('txcount '+ str(len(alltx)))
-    timer = Timers(web3.eth.blockNumber)  
+    timer = Timers(web3.eth.blockNumber)
     start_time = time.time()
     first_cycle = True
     analyzed = 0
 
-    
+
     def append_new_tx(clean_tx):
         nonlocal alltx
         if not clean_tx.hash in alltx.index:
             alltx = alltx.append(clean_tx.to_dataframe(), ignore_index = False)
-    
-
 
     def update_dataframes(block):
         nonlocal alltx
@@ -159,16 +148,16 @@ def master_control(report_option):
             mined_block_num = block-3
             (mined_blockdf, block_obj) = process_block_transactions(mined_block_num)
 
-            #add mined data to tx dataframe 
+            #add mined data to tx dataframe
             mined_blockdf_seen = mined_blockdf[mined_blockdf.index.isin(alltx.index)]
             print('num mined in ' + str(mined_block_num)+ ' = ' + str(len(mined_blockdf)))
             print('num seen in ' + str(mined_block_num)+ ' = ' + str(len(mined_blockdf_seen)))
             alltx = alltx.combine_first(mined_blockdf)
-           
+
             #process block data
             block_sumdf = process_block_data(mined_blockdf, block_obj)
 
-            #add block data to block dataframe 
+            #add block data to block dataframe
             blockdata = blockdata.append(block_sumdf, ignore_index = True)
 
             #get hashpower table, block interval time, gaslimit, speed from last 200 blocks
@@ -193,8 +182,8 @@ def master_control(report_option):
 
             #make txpool block data
             txpool_block = make_txpool_block(block, txpool, alltx)
-            
-            if not txpool_block.empty: 
+
+            if not txpool_block.empty:
                 #new dfs grouped by gasprice and nonce
                 txpool_by_gp = txpool_block[['gas_price', 'round_gp_10gwei']].groupby('round_gp_10gwei').agg({'gas_price':'count'})
                 txpool_block_nonce = txpool_block[['from_address', 'nonce']].groupby('from_address').agg({'nonce':'min'})
@@ -220,11 +209,11 @@ def master_control(report_option):
             try:
                 if txpool_block.notnull:
                     analyzed_block = analyze_txpool(block, txpool_block, hashpower, hpower2, block_time, gaslimit, txatabove_lookup, gp_lookup, gp_lookup2, gprecs)
-                    #update alltx 
+                    #update alltx
                     alltx = alltx.combine_first(analyzed_block)
             except:
                 pass
-                
+
             #with pd.option_context('display.max_columns', None,):
                 #print(analyzed_block)
 
@@ -254,10 +243,10 @@ def master_control(report_option):
             (blockdata, alltx, txpool) = prune_data(blockdata, alltx, txpool, block)
             return True
 
-        except: 
-            print(traceback.format_exc())    
+        except:
+            print(traceback.format_exc())
 
-    
+
     while True:
         try:
             block = web3.eth.blockNumber
@@ -265,20 +254,20 @@ def master_control(report_option):
                 analyzed = block
                 tx_filter = web3.eth.filter('pending')
                 #get list of txhashes from txpool
-                print("getting txpool hashes at block " +str(block) +" ...") 
+                print("getting txpool hashes at block " +str(block) +" ...")
                 current_txpool = get_txhases_from_txpool(block)
                 #add txhashes to txpool dataframe
                 print("done. length = " +str(len(current_txpool)))
                 txpool = txpool.append(current_txpool, ignore_index = False)
         except:
             pass
-             
+
         try:
             new_tx_list = web3.eth.getFilterChanges(tx_filter.filter_id)
         except:
             tx_filter = web3.eth.filter('pending')
             new_tx_list = web3.eth.getFilterChanges(tx_filter.filter_id)
-        
+
         timestamp = time.time()
 
         #this can be adjusted depending on how fast your server is
@@ -297,9 +286,9 @@ def master_control(report_option):
         elif timer.process_block == (block-1) and len(new_tx_list) > 200:
             print("sampling 200 from " + str(len(new_tx_list)) + " new tx")
             new_tx_list = random.sample(new_tx_list, 200)
-       
-        for new_tx in new_tx_list:    
-            try:        
+
+        for new_tx in new_tx_list:
+            try:
                 tx_obj = web3.eth.getTransaction(new_tx)
                 clean_tx = CleanTx(tx_obj, block, timestamp)
                 append_new_tx(clean_tx)
@@ -307,7 +296,7 @@ def master_control(report_option):
                 pass
 
         first_cycle = False
-        
+
         if (timer.process_block < block):
                 try:
                     test_filter = web3.eth.uninstallFilter(tx_filter.filter_id)
@@ -319,14 +308,14 @@ def master_control(report_option):
                 print ('finished ' + str(timer.process_block) + "\n")
                 timer.process_block = timer.process_block + 1
                 first_cycle = True
-        
+
         if (timer.process_block < (block - 8)):
                 print("skipping ahead \n")
                 timer.process_block = (block-1)
-              
-    
-            
-if len(sys.argv) > 1:            
+
+
+
+if len(sys.argv) > 1:
     report_option = sys.argv[1] # '-r' = make website report
 else:
     report_option = False

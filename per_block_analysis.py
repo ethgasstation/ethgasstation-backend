@@ -1,10 +1,11 @@
 import pandas as pd
 import numpy as np
 import traceback
-from web3 import Web3, HTTPProvider
-web3 = Web3(HTTPProvider('http://localhost:8545'))
-from egs import *
+from egs.egs_ref import *
+import egs.settings
 import modelparams
+
+web3 = egs.settings.get_web3_provider()
 
 def get_txhases_from_txpool(block):
     """gets list of all txhash in txpool at block and returns dataframe"""
@@ -26,7 +27,7 @@ def process_block_transactions(block):
     """get tx data from block"""
     block_df = pd.DataFrame()
     block_obj = web3.eth.getBlock(block, True)
-    miner = block_obj.miner 
+    miner = block_obj.miner
     for transaction in block_obj.transactions:
         clean_tx = CleanTx(transaction, None, None, miner)
         block_df = block_df.append(clean_tx.to_dataframe(), ignore_index = False)
@@ -70,10 +71,10 @@ def get_tx_atabove(gasprice, txpool_by_gp):
 
 def check_recent(gasprice, submitted_recent):
     """gets the %of transactions unmined submitted in recent blocks"""
-    
+
     #set this to avoid false positive delays
-    submitted_recent.loc[(submitted_recent['still_here'] >= 1) & (submitted_recent['still_here'] <= 2) & (submitted_recent['total'] < 4), 'pct_unmined'] = np.nan 
-    maxval = submitted_recent.loc[submitted_recent.index > gasprice, 'pct_unmined'].max()    
+    submitted_recent.loc[(submitted_recent['still_here'] >= 1) & (submitted_recent['still_here'] <= 2) & (submitted_recent['total'] < 4), 'pct_unmined'] = np.nan
+    maxval = submitted_recent.loc[submitted_recent.index > gasprice, 'pct_unmined'].max()
     if gasprice in submitted_recent.index:
         stillh = submitted_recent.get_value(gasprice, 'still_here')
         if stillh > 2:
@@ -81,7 +82,7 @@ def check_recent(gasprice, submitted_recent):
         else:
             rval = maxval
     else:
-        rval = maxval  
+        rval = maxval
     if gasprice >= 1000:
         rval = 0
     if (rval > maxval) or (gasprice >= 1000) :
@@ -173,12 +174,12 @@ def make_txpool_block(block, txpool, alltx):
     else:
         txpool_block = pd.DataFrame()
         print ('txpool block length 0')
-    return txpool_block 
+    return txpool_block
 
 def analyze_nonce(txpool_block, txpool_block_nonce):
     """flags tx in txpool_block that are chained to lower nonce tx"""
     txpool_block['num_from'] = txpool_block.groupby('from_address')['block_posted'].transform('count')
-    #when multiple tx from same from address, finds tx with lowest nonce (unchained) - others are 'chained' 
+    #when multiple tx from same from address, finds tx with lowest nonce (unchained) - others are 'chained'
     txpool_block['chained'] = txpool_block.apply(check_nonce, args=(txpool_block_nonce,), axis=1)
     return txpool_block
 
@@ -219,7 +220,7 @@ def make_predcitiontable (hashpower, hpower, avg_timemined, txpool_by_gp, submit
     predictTable['expectedWait'] = predictTable.apply(predict, axis=1)
     predictTable['expectedTime'] = predictTable['expectedWait'].apply(lambda x: np.round((x * avg_timemined / 60), decimals=2))
 
-    return (predictTable, txatabove_lookup, gp_lookup, gp_lookup2) 
+    return (predictTable, txatabove_lookup, gp_lookup, gp_lookup2)
 
 def get_gasprice_recs(prediction_table, block_time, block, speed, array5m, array30m,  minlow=-1, submitted_5mago=None, submitted_30mago=None):
     """gets gasprice recommendations from txpool and model estimates"""
@@ -240,7 +241,7 @@ def get_gasprice_recs(prediction_table, block_time, block, speed, array5m, array
             elif (txpool > calc) and (prediction_table.loc[prediction_table['gasprice'] == (txpool - 10), label_df[0]].values[0] > 15):
                 rec = txpool
             else:
-                rec = calc               
+                rec = calc
         except Exception as e:
             txpool = np.nan
             rec = np.nan
@@ -295,7 +296,7 @@ def get_gasprice_recs(prediction_table, block_time, block, speed, array5m, array
         minhash_list = prediction_table.loc[prediction_table['hashpower_accepting']>95, 'gasprice']
         if fastest < minhash_list.min():
             fastest = minhash_list.min()
-        return float(fastest) 
+        return float(fastest)
 
     def get_wait(gasprice):
         try:

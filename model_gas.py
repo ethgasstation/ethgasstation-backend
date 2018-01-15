@@ -17,11 +17,10 @@ import statsmodels.api as sm
 from sqlalchemy import create_engine 
 from patsy import dmatrices
 
+import egs.settings
 
-from egs.settings import get_settings_filepath, load_settings, get_setting
-
-settings_file = get_settings_filepath(os.path.dirname(os.path.realpath(__file__)))
-load_settings(settings_file)
+settings_file = egs.settings.get_settings_filepath(os.path.dirname(os.path.realpath(__file__)))
+egs.settings.load_settings(settings_file)
 
 # TODO: choose one mysql or the other
 cnx = mysql.connector.connect(
@@ -31,15 +30,7 @@ cnx = mysql.connector.connect(
     port=get_setting('mysql', 'port'),
     database=get_setting('mysql', 'database'))
 cursor = cnx.cursor()
-engine = create_engine(
-    "mysql+mysqlconnector://%s:%s@%s:%s/%s" % (
-        get_setting('mysql', 'username'),
-        get_setting('mysql', 'password'),
-        get_setting('mysql', 'hostname'),
-        get_setting('mysql', 'port'),
-        get_setting('mysql', 'database')
-    ), echo=False)
-
+engine = egs.settings.get_mysql_connstr()
 query = ("SELECT * FROM minedtx2")
 cursor.execute(query)
 head = cursor.column_names

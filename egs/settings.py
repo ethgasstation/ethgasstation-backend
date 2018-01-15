@@ -1,6 +1,8 @@
 import configparser
 import os
 
+from web3 import Web3, HTTPProvider
+
 parser_instance = None
 settings_loaded = False
 
@@ -46,3 +48,24 @@ def get_settings_filepath(curdir):
         if os.path.isfile(candidate_location):
             return candidate_location
     raise FileNotFoundError("Cannot find EthGasStation settings file.")
+
+def get_web3_provider():
+    """Get Web3 instance."""
+    web3 = Web3(
+        HTTPProvider(
+            "%s://%s:%s" % (
+                get_setting('geth', 'protocol'),
+                get_setting('geth', 'hostname'),
+                get_setting('geth', 'port'))))
+    return web3
+
+def get_mysql_connstr():
+    """Get a MySQL connection string for SQLAlchemy."""
+    connstr = "mysql+mysqlconnector://%s:%s@%s:%s/%s" % (
+        get_setting('mysql', 'username'),
+        get_setting('mysql', 'password'),
+        get_setting('mysql', 'hostname'),
+        get_setting('mysql', 'port'),
+        get_setting('mysql', 'database')
+        )
+    return connstr
