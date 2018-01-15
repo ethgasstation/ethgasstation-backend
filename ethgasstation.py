@@ -85,12 +85,6 @@ def write_report(report, top_miners, price_wait, miner_txdata, gasguzz, lowprice
     gasguzzout = gasguzz.to_json(orient='records')
     lowpriceout = lowprice.to_json(orient='records')
     price_waitout = price_wait.to_json(orient='records')
-    filepath_report = parentdir + '/json/txDataLast10k.json'
-    filepath_tminers = parentdir + '/json/topMiners.json'
-    filepath_pwait = parentdir + '/json/priceWait.json'
-    filepath_minerout = parentdir + '/json/miners.json'
-    filepath_gasguzzout = parentdir + '/json/gasguzz.json'
-    filepath_lowpriceout = parentdir + '/json/validated.json'
 
     try:
         exporter.write_json('txDataLast10k', report)
@@ -110,10 +104,8 @@ def write_to_json(gprecs, prediction_table=pd.DataFrame()):
         if not prediction_table.empty:
             prediction_table['gasprice'] = prediction_table['gasprice']/10
             prediction_tableout = prediction_table.to_json(orient='records')
-            filepath_prediction_table = parentdir + '/json/predictTable.json'
             exporter.write_json('predictTable', prediction_tableout)
 
-        filepath_gprecs = parentdir + '/json/ethgasAPI.json'
         exporter.write_json('ethgasAPI', gprecs)
     except Exception as e:
         print(e)
