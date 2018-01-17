@@ -385,9 +385,7 @@ def make_recent_blockdf(recentdf, current_txpool, alltx):
     recentdf['mined'] = recentdf.index.isin(alltx.index[alltx['block_mined'].notnull()]).astype(int)
     recentdf = recentdf[['gas_price', 'round_gp_10gwei', 'still_here', 'mined']].groupby('round_gp_10gwei').agg({'gas_price':'count', 'still_here':'sum', 'mined':'sum'})
     recentdf.rename(columns={'gas_price':'total'}, inplace=True)
-    recentdf['pct_unmined'] = recentdf['still_here']/recentdf['total']
     recentdf['pct_unmined'] = recentdf[['still_here', 'total']].apply(roundresult, axis=1)
-    recentdf['pct_mined'] = recentdf['mined']/recentdf['total']
     recentdf['pct_mined'] = recentdf[['mined', 'total']].apply(roundresult, axis=1)
     return recentdf
 
