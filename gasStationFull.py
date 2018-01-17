@@ -165,7 +165,7 @@ def master_control(report_option):
             submitted_30mago = alltx.loc[(alltx['block_posted'] < (block-50)) & (alltx['block_posted'] > (block-120)) & (alltx['chained']==0) & (alltx['gas_offered'] < 500000)].copy()
             print("# of tx submitted ~ an hour ago: " + str((len(submitted_30mago))))
 
-            submitted_5mago = alltx.loc[(alltx['block_posted'] < (block-10)) & (alltx['block_posted'] > (block-70)) & (alltx['chained']==0) & (alltx['gas_offered'] < 500000)].copy()
+            submitted_5mago = alltx.loc[(alltx['block_posted'] < (block-8)) & (alltx['block_posted'] > (block-49)) & (alltx['chained']==0) & (alltx['gas_offered'] < 500000)].copy()
             print("# of tx submitted ~ 5m ago: " + str((len(submitted_5mago))))
 
             if len(submitted_30mago > 50):
