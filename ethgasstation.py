@@ -290,20 +290,20 @@ def master_control(report_option):
         first_cycle = False
 
         if (timer.process_block < block):
-                try:
-                    test_filter = web3.eth.uninstallFilter(tx_filter.filter_id)
-                except:
-                    pass
-                print('current block ' +str(block))
-                print ('processing block ' + str(timer.process_block))
-                updated = update_dataframes(timer.process_block)
-                print ('finished ' + str(timer.process_block) + "\n")
-                timer.process_block = timer.process_block + 1
-                first_cycle = True
+            try:
+                test_filter = web3.eth.uninstallFilter(tx_filter.filter_id)
+            except:
+                pass
+            print('current block ' +str(block))
+            print ('processing block ' + str(timer.process_block))
+            updated = update_dataframes(timer.process_block)
+            print ('finished ' + str(timer.process_block) + "\n")
+            timer.process_block = timer.process_block + 1
+            first_cycle = True
 
         if (timer.process_block < (block - 8)):
-                print("skipping ahead \n")
-                timer.process_block = (block-1)
+            print("skipping ahead \n")
+            timer.process_block = (block-1)
 
 
 

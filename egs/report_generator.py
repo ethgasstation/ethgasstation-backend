@@ -5,7 +5,7 @@ import urllib
 import time
 
 
-class SummaryReport():
+class SummaryReport(object):
     """analyzes data from last x blocks to create summary stats"""
     def __init__(self, tx_df, block_df, end_block):
         self.end_block = end_block
@@ -59,6 +59,7 @@ class SummaryReport():
 
         """ETH price data"""
         # TODO: cache this URI call somewhere
+        # TODO: cert pin cryptocompare so these are less likely to be tampered with
         url = "https://min-api.cryptocompare.com/data/price?fsym=ETH&tsyms=USD,EUR,GBP,CNY"
         try:
             with urllib.request.urlopen(url, timeout=3) as response:
