@@ -24,8 +24,9 @@ from sqlalchemy.ext.declarative import declarative_base
 
 from egs.egs_ref import *
 from egs.jsonexporter import JSONExporter, JSONExporterException
+from egs.report_generator import SummaryReport
 from per_block_analysis import *
-from report_generator import *
+
 
 # configure necessary services
 exporter = JSONExporter()
