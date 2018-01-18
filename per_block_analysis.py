@@ -232,20 +232,20 @@ def get_gasprice_recs(prediction_table, block_time, block, speed, array5m, array
         elif timeframe == 'safelow':
             label_df = ['s1hago', 'pct_mined_30m', 'total_seen_30m']
         try:
-            series = prediction_table.loc[(prediction_table[label_df[0]] <= 5) & (prediction_table[label_df[1]] > 20) & (prediction_table[label_df[2]] > 10), 'gasprice']
+            series = prediction_table.loc[(prediction_table[label_df[0]] <= 5) & (prediction_table[label_df[1]] > 1) & (prediction_table[label_df[2]] > 10), 'gasprice']
             txpool = series.min()
-            print ('calc value :' + str(calc))
+            print ("\ncalc value :" + str(calc))
             print ('txpool value :' + str(txpool))
             if (txpool < calc):
                 rec = txpool
-            elif (txpool > calc) and (prediction_table.loc[prediction_table['gasprice'] == (txpool - 10), label_df[0]].values[0] > 15):
+            elif (txpool > calc) and (prediction_table.loc[prediction_table['gasprice'] == (calc), label_df[0]].values[0] > 15):
+                print ("txpool>calc")
                 rec = txpool
             else:
                 rec = calc
         except Exception as e:
             txpool = np.nan
             rec = np.nan
-            print(traceback.format_exc())
         return (rec, txpool)
 
 
@@ -276,7 +276,7 @@ def get_gasprice_recs(prediction_table, block_time, block, speed, array5m, array
         if average < minhash_list.min():
             average = minhash_list.min()
         if np.isnan(average):
-            average = 500
+            average = average_calc
         average = float(average)
         average_txpool = float(average_txpool)
         average_calc = float(average_calc)
@@ -306,33 +306,64 @@ def get_gasprice_recs(prediction_table, block_time, block, speed, array5m, array
         wait = round(wait, 1)
         return float(wait)
 
-    def check_recent_mediangp (gprec, gparray):
+    def check_recent_mediangp (gprec, gparray, calc):
+        """stabilizes gp estimates over last 20m"""
         try:
-            pct75 = np.percentile(gparray, 75)
-            if gprec < pct75:
-                gprec_m = np.ceil(pct75)
+            pct50 = np.percentile(gparray, 50)
+
+            if gprec <= pct50:
+                pct50 = pct50/10
+                gprec_m = np.ceil(pct50) * 10
             else:
-                gprec_m = gprec
+                pct95 = np.percentile(gparray, 95)
+                if gprec < pct95:
+                    gprec_m = gprec
+                else:
+                    pct95 = pct95/10
+                    gprec_m = np.ceil(pct95) * 10
             if gparray.size > 80:
                 gparray = np.delete(gparray, 0)
+            if (gprec <= calc) and (gprec_m > calc):
+                gprec_m = calc
         except Exception as e:
             print (e)
             gprec_m = gprec
+        print ('medianizer: ' + str(gprec_m))
         return (gprec_m, gparray)
 
     gprecs = {}
+
     (gprecs['safeLow'], gprecs['safelow_calc'], gprecs['safelow_txpool']) = get_safelow()
-    array30m = np.append(array30m, gprecs['safeLow'])
-    (gprecs['safeLow'], array30m) = check_recent_mediangp(gprecs['safeLow'], array30m)
+
     (gprecs['average'], gprecs['average_calc'], gprecs['average_txpool']) = get_average()
-    array5m = np.append(array5m, gprecs['average'])
-    (gprecs['average'], array5m) = check_recent_mediangp(gprecs['average'], array5m)
+    
+    gprecs['fast'] = get_fast()
+
+    print("")
+    if gprecs['safelow_txpool'] is not np.nan :
+        array30m = np.append(array30m, gprecs['safelow_txpool'])
+    else:
+        array30m = np.append(array30m, gprecs['safeLow'])
+    (gprecs['safeLow'], array30m) = check_recent_mediangp(gprecs['safeLow'], array30m, gprecs['safelow_calc'])
+    gprecs['safelow_txpool'] = gprecs['safeLow']
+
+    if gprecs['average_txpool'] is not np.nan :
+        array5m = np.append(array5m, gprecs['average_txpool'])
+    else:
+        array5m = np.append(array5m, gprecs['average'])
+    (gprecs['average'], array5m) = check_recent_mediangp(gprecs['average'], array5m, gprecs['average_calc'])
+    gprecs['average_txpool'] = gprecs['average']
+
+    if (gprecs['fast'] < gprecs['average']):
+        gprecs['fast'] = gprecs['average']
+
     if (gprecs['safeLow'] > gprecs['average']):
         gprecs['safeLow'] = gprecs['average']
         gprecs['safelow_txpool'] = gprecs['average']
+
     gprecs['safeLowWait'] = get_wait(gprecs['safeLow'])
     gprecs['avgWait'] = get_wait(gprecs['average'])
-    gprecs['fast'] = get_fast()
+    
     gprecs['fastWait'] = get_wait(gprecs['fast'])
     gprecs['fastest'] = get_fastest()
     gprecs['fastestWait'] = get_wait(gprecs['fastest'])
@@ -345,16 +376,17 @@ def make_recent_blockdf(recentdf, current_txpool, alltx):
     '''creates df for monitoring recentlymined tx'''
 
     def roundresult(row):
-        x = row[0] / row[1] * 100
-        return np.round(x)
+        if np.isnan(row[0]) or np.isnan(row[1]):
+            return 0
+        else:
+            x = row[0] / row[1] * 100
+            return np.round(x)
 
     recentdf['still_here'] = recentdf.index.isin(current_txpool.index).astype(int)
     recentdf['mined'] = recentdf.index.isin(alltx.index[alltx['block_mined'].notnull()]).astype(int)
     recentdf = recentdf[['gas_price', 'round_gp_10gwei', 'still_here', 'mined']].groupby('round_gp_10gwei').agg({'gas_price':'count', 'still_here':'sum', 'mined':'sum'})
     recentdf.rename(columns={'gas_price':'total'}, inplace=True)
-    recentdf['pct_unmined'] = recentdf['still_here']/recentdf['total']
     recentdf['pct_unmined'] = recentdf[['still_here', 'total']].apply(roundresult, axis=1)
-    recentdf['pct_mined'] = recentdf['mined']/recentdf['total']
     recentdf['pct_mined'] = recentdf[['mined', 'total']].apply(roundresult, axis=1)
     return recentdf
 
