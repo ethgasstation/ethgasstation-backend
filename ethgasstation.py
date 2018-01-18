@@ -15,6 +15,8 @@ import pandas as pd
 import numpy as np
 
 import egs.settings
+egs.settings.load_settings()
+
 
 from sqlalchemy import create_engine, Column, Integer, String, DECIMAL, BigInteger, text
 from sqlalchemy.orm import sessionmaker
@@ -26,9 +28,6 @@ from per_block_analysis import *
 from report_generator import *
 
 # configure necessary services
-settings_file = egs.settings.get_settings_filepath(os.path.dirname(os.path.realpath(__file__)))
-egs.settings.load_settings(settings_file)
-
 exporter = JSONExporter()
 web3 = egs.settings.get_web3_provider()
 connstr = egs.settings.get_mysql_connstr()

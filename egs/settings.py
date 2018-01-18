@@ -1,5 +1,6 @@
 import configparser
 import os
+import sys
 
 from web3 import Web3, HTTPProvider
 
@@ -10,10 +11,13 @@ def settings_file_loaded():
     global settings_loaded
     return settings_loaded is True
 
-def load_settings(settings_file):
+def load_settings(settings_file=None):
     """Load settings from a settings file."""
     global parser_instance
     global settings_loaded
+
+    if settings_file is None:
+        settings_file = get_settings_filepath()
 
     """Get settings from INI configuration file."""
     parser_instance = configparser.ConfigParser()
@@ -29,7 +33,7 @@ def get_setting(section, name):
             return parser_instance[section][name]
     raise KeyError("Could not find setting %s.%s in configuration." % (section, name))
 
-def get_settings_filepath(curdir):
+def get_settings_filepath():
     """Find a valid configuration file.
     Order of priority:
         '/etc/ethgasstation/settings.conf'
@@ -43,6 +47,14 @@ def get_settings_filepath(curdir):
         '/etc/default/ethgasstation.conf',
         '/opt/ethgasstation/settings.conf'
     ]
+
+    # short circuit on environment variable
+    if "SETTINGS_FILE" in os.environ:
+        path = os.path.join(os.getcwd(), os.environ['SETTINGS_FILE'])
+        if os.path.isfile(path):
+            return os.path.abspath(os.environ['SETTINGS_FILE'])
+        else:
+            raise FileNotFoundError("Can't find env-set settings file at %s" % path)
 
     for candidate_location in default_ini_locations:
         if os.path.isfile(candidate_location):
@@ -60,7 +72,13 @@ def get_web3_provider():
     return web3
 
 def get_mysql_connstr():
-    """Get a MySQL connection string for SQLAlchemy."""
+    """Get a MySQL connection string for SQLAlchemy, or short circuit to
+    SQLite for a dev mode."""
+    if "USE_SQLITE_DB" in os.environ:
+        sqlite_db_path = os.path.join(os.getcwd(), os.environ["USE_SQLITE_DB"])
+        connstr = "sqlite:///%s" % (sqlite_db_path)
+        return connstr
+
     connstr = "mysql+mysqlconnector://%s:%s@%s:%s/%s" % (
         get_setting('mysql', 'username'),
         get_setting('mysql', 'password'),

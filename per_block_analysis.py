@@ -3,8 +3,9 @@ import numpy as np
 import traceback
 from egs.egs_ref import *
 import egs.settings
-import modelparams
+import egs.modelparams as modelparams
 
+egs.settings.load_settings()
 web3 = egs.settings.get_web3_provider()
 
 def get_txhashes_from_txpool(block):
