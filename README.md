@@ -51,6 +51,9 @@ To run the script as is on bare metal or a VM, manually:
 1. Install requirements using `pip3 install -r requirements.txt`
 2. Run `./ethgasstation.py` or `python3 ethgasstation.py`.
 
+If you are running a frontend to ETH Gas Station, use the `--generate-report`
+flag to generate detailed JSON reports for front-end or API consumption.
+
 It is also possible to run the oracle as a Docker container.
 
 1. Change the settings in settings.docker.conf.
