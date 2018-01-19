@@ -1,12 +1,15 @@
 import pandas as pd
 import numpy as np
 import traceback
-from egs.egs_ref import *
-import egs.settings
-import egs.modelparams as modelparams
 
-egs.settings.load_settings()
-web3 = egs.settings.get_web3_provider()
+from .egs_ref import *
+from .settings import load_settings, get_web3_provider
+from .output import Output
+from .modelparams.constants import *
+
+load_settings()
+web3 = get_web3_provider()
+console = Output()
 
 def get_txhashes_from_txpool(block):
     """gets list of all txhash in txpool at block and returns dataframe"""
@@ -105,7 +108,7 @@ def predict(row):
     #set in modelparams
 
     try:
-        sum1 = (modelparams.INTERCEPT + (row['hashpower_accepting'] * modelparams.HPA_COEF))
+        sum1 = (INTERCEPT + (row['hashpower_accepting'] * HPA_COEF))
         prediction = np.exp(sum1)
         if prediction < 2:
             prediction = 2
@@ -113,7 +116,7 @@ def predict(row):
             prediction = prediction + 100
         return np.round(prediction, decimals=2)
     except Exception as e:
-        print(e)
+        console.error("predict: Exception caught: " + str(e))
         return np.nan
 
 
@@ -158,7 +161,7 @@ def analyze_last100blocks(block, alltx):
 def analyze_last5blocks(block, alltx):
     recent_blocks= alltx.loc[(alltx['block_mined'] >= (block-5)) & (alltx['block_mined'] <= (block))]
     gp_mined_10th = recent_blocks['gas_price'].quantile(.1)
-    print (gp_mined_10th/1e8)
+    console.debug("analyze_last5blocks: " + str(gp_mined_10th/1e8))
     return gp_mined_10th/1e8
 
 def make_txpool_block(block, txpool, alltx):
@@ -171,10 +174,10 @@ def make_txpool_block(block, txpool, alltx):
         #txpool_block only has transactions received by filter
         txpool_block = txpool_block.join(alltx, how='inner')
         txpool_block = txpool_block.append(alltx.loc[alltx['block_posted']==block])
-        print('txpool block length ' + str(len(txpool_block)))
+        console.info('txpool block length ' + str(len(txpool_block)))
     else:
         txpool_block = pd.DataFrame()
-        print ('txpool block length 0')
+        console.warn('txpool block length 0')
     return txpool_block
 
 def analyze_nonce(txpool_block, txpool_block_nonce):
@@ -235,12 +238,12 @@ def get_gasprice_recs(prediction_table, block_time, block, speed, array5m, array
         try:
             series = prediction_table.loc[(prediction_table[label_df[0]] <= 5) & (prediction_table[label_df[1]] > 1) & (prediction_table[label_df[2]] > 10), 'gasprice']
             txpool = series.min()
-            print ("\ncalc value :" + str(calc))
-            print ('txpool value :' + str(txpool))
+            console.debug("\ncalc value: " + str(calc))
+            console.debug('txpool value: ' + str(txpool))
             if (txpool < calc):
                 rec = txpool
             elif (txpool > calc) and (prediction_table.loc[prediction_table['gasprice'] == (calc), label_df[0]].values[0] > 15):
-                print ("txpool>calc")
+                console.warn("txpool > calc")
                 rec = txpool
             else:
                 rec = calc
@@ -327,9 +330,9 @@ def get_gasprice_recs(prediction_table, block_time, block, speed, array5m, array
             if (gprec <= calc) and (gprec_m > calc):
                 gprec_m = calc
         except Exception as e:
-            print (e)
+            console.error("check_recent_mediagp: Exception caught: " + str(e))
             gprec_m = gprec
-        print ('medianizer: ' + str(gprec_m))
+        console.debug("medianizer: %s" % str(gprec_m))
         return (gprec_m, gparray)
 
     gprecs = {}
@@ -337,10 +340,9 @@ def get_gasprice_recs(prediction_table, block_time, block, speed, array5m, array
     (gprecs['safeLow'], gprecs['safelow_calc'], gprecs['safelow_txpool']) = get_safelow()
 
     (gprecs['average'], gprecs['average_calc'], gprecs['average_txpool']) = get_average()
-    
+
     gprecs['fast'] = get_fast()
 
-    print("")
     if gprecs['safelow_txpool'] is not np.nan :
         array30m = np.append(array30m, gprecs['safelow_txpool'])
     else:
@@ -364,7 +366,7 @@ def get_gasprice_recs(prediction_table, block_time, block, speed, array5m, array
 
     gprecs['safeLowWait'] = get_wait(gprecs['safeLow'])
     gprecs['avgWait'] = get_wait(gprecs['average'])
-    
+
     gprecs['fastWait'] = get_wait(gprecs['fast'])
     gprecs['fastest'] = get_fastest()
     gprecs['fastestWait'] = get_wait(gprecs['fastest'])
@@ -397,8 +399,8 @@ def analyze_txpool(block, txpool_block, hashpower, hpower, avg_timemined, gaslim
     """calculate data for transactions in the txpoolblock"""
     txpool_block = txpool_block.loc[txpool_block['block_posted']==block].copy()
     txpool_block['pct_limit'] = txpool_block['gas_offered'].apply(lambda x: x / gaslimit)
-    txpool_block['high_gas_offered'] = (txpool_block['pct_limit'] > modelparams.HIGHGAS1).astype(int)
-    txpool_block['highgas2'] = (txpool_block['pct_limit'] > modelparams.HIGHGAS2).astype(int)
+    txpool_block['high_gas_offered'] = (txpool_block['pct_limit'] > HIGHGAS1).astype(int)
+    txpool_block['highgas2'] = (txpool_block['pct_limit'] > HIGHGAS2).astype(int)
     txpool_block['hashpower_accepting'] = txpool_block['round_gp_10gwei'].apply(lambda x: gp_lookup[x] if x in gp_lookup else 100)
     txpool_block['hashpower_accepting2'] = txpool_block['round_gp_10gwei'].apply(lambda x: gp_lookup2[x] if x in gp_lookup2 else 100)
     if txatabove_lookup is not None:
