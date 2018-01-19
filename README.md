@@ -48,6 +48,7 @@ location string, e.g. `http://:password@localhost:6379/`.
 
 To run the script as is on bare metal or a VM, manually:
 
+0. Edit `settings.conf` and install to [an allowed directory](https://github.com/ethgasstation/ethgasstation-backend/pull/17/files#diff-bbda44d05044576b25a2c6cf4b0c3597R37).
 1. Install requirements using `pip3 install -r requirements.txt`
 2. Run `./ethgasstation.py` or `python3 ethgasstation.py`.
 
