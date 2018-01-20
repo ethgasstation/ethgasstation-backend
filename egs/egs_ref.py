@@ -1,3 +1,10 @@
+"""
+egs_ref.py
+
+Utility functions, MySQL Schemas, and other such architecture
+for the EthGasStation adaptive oracle.
+"""
+
 import pandas as pd
 import numpy as np
 import json

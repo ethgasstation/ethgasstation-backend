@@ -5,7 +5,7 @@ import urllib
 import time
 
 
-class SummaryReport():
+class SummaryReport(object):
     """analyzes data from last x blocks to create summary stats"""
     def __init__(self, tx_df, block_df, end_block):
         self.end_block = end_block
@@ -19,13 +19,13 @@ class SummaryReport():
                 return row['round_gp_10gwei']/10
             else:
                 return np.nan
-        
+
         self.tx_df['minedGasPrice'] = self.tx_df.apply(get_minedgasprice, axis=1)
         self.tx_df['gasCat1'] = (self.tx_df['minedGasPrice'] <= 1) & (self.tx_df['minedGasPrice'] >=0)
         self.tx_df['gasCat2'] = (self.tx_df['minedGasPrice']>1) & (self.tx_df['minedGasPrice']<= 4)
         self.tx_df['gasCat3'] = (self.tx_df['minedGasPrice']>4) & (self.tx_df['minedGasPrice']<= 20)
         self.tx_df['gasCat4'] = (self.tx_df['minedGasPrice']>20) & (self.tx_df['minedGasPrice']<= 50)
-        self.tx_df['gasCat5'] = (self.tx_df['minedGasPrice']>50) 
+        self.tx_df['gasCat5'] = (self.tx_df['minedGasPrice']>50)
         self.block_df['emptyBlocks'] = (self.block_df['numtx']==0).astype(int)
         self.tx_df['mined'] = self.tx_df['block_mined'].notnull()
         self.tx_df['delay'] = self.tx_df['block_mined'] - self.tx_df['block_posted']
@@ -58,6 +58,8 @@ class SummaryReport():
         self.post['medianDelayTime'] = float(self.tx_df['delay2'].quantile(.5))
 
         """ETH price data"""
+        # TODO: cache this URI call somewhere
+        # TODO: cert pin cryptocompare so these are less likely to be tampered with
         url = "https://min-api.cryptocompare.com/data/price?fsym=ETH&tsyms=USD,EUR,GBP,CNY"
         try:
             with urllib.request.urlopen(url, timeout=3) as response:
@@ -72,7 +74,7 @@ class SummaryReport():
             self.post['ETHpriceEUR'] = 0
             self.post['ETHpriceCNY'] = 0
             self.post['ETHpriceGBP'] = 0
-    
+
         """find minimum gas price with at least 50 transactions mined"""
         tx_grouped_price = self.tx_df[['block_posted', 'minedGasPrice']].groupby('minedGasPrice').count()
         tx_grouped_price.rename(columns = {'block_posted': 'count'}, inplace = True)
@@ -80,7 +82,7 @@ class SummaryReport():
         minlow_series = tx_grouped_price[tx_grouped_price['sum']>50].index
         self.post['minLow'] = float(minlow_series.min())
         self.minlow = float(minlow_series.min()*10)
-    
+
         """generate table with key miner stats"""
         miner_txdata = self.tx_df[['block_posted', 'miner']].groupby('miner').count()
         miner_txdata.rename(columns={'block_posted':'count'}, inplace = True)
@@ -158,13 +160,13 @@ class SummaryReport():
         grouped_lowprice = lowprice.groupby('gasprice', as_index=False).head(10)
         grouped_lowprice.reset_index(inplace=True)
         self.lowprice = grouped_lowprice.sort_values('gasprice', ascending=False)
-    
+
         """average block time"""
         blockinterval = self.block_df[['block_number', 'time_mined']].diff()
         blockinterval.loc[blockinterval['block_number'] > 1, 'time_mined'] = np.nan
         blockinterval.loc[blockinterval['block_number']< -1, 'time_mined'] = np.nan
         self.avg_timemined = blockinterval['time_mined'].mean()
-    
+
         """median wait time by gas price for bar graph"""
         price_wait = self.tx_df.loc[:, ['minedGasPrice', 'delay2']]
         price_wait.loc[price_wait['minedGasPrice']>=40, 'minedGasPrice'] = 40
