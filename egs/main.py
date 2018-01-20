@@ -111,7 +111,7 @@ def write_to_json(gprecs, prediction_table=pd.DataFrame()):
         console.error("write_to_json: Exception caught: " + str(e))
 
 def master_control(args):
-
+    report_option = False
     if args.generate_report is True:
         report_option = True
 
