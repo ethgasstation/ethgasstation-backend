@@ -4,6 +4,7 @@
 """
 
 from colored import fg, bg, attr
+import os
 import time
 
 class OutputException(Exception):
@@ -16,7 +17,10 @@ class Output(object):
     levels = [ 'off', 'fatal', 'error', 'warn', 'info', 'debug', 'trace' ]
 
     def __init__(self):
-        self.set_loglevel('info')
+        if 'LOGLEVEL' in os.environ:
+            self.set_loglevel(os.environ['LOGLEVEL'])
+        else:
+            self.set_loglevel('info')
 
     def set_loglevel(self, level):
         if not level.lower() in self.levels:
