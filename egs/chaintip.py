@@ -65,7 +65,10 @@ class Chaintip(object):
                 return -1
         else:
             # just get this from our geth
-            return self.web3.eth.blockNumber
+            try:
+                return self.web3.eth.blockNumber
+            except:
+                return -1
 
 
     def get_highest_known_block(self):
