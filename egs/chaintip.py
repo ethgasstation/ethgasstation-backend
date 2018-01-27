@@ -15,9 +15,11 @@ from .settings import settings_file_loaded, get_setting, get_web3_provider
 from .output import Output
 
 class ChaintipException(Exception):
+    """Generic exception for Chaintip."""
     pass
 
 class Chaintip(object):
+    """Chaintip detection class."""
 
     get_highest_from = []
     user_agent = "ETHGasStation-ChainTip"
@@ -59,6 +61,8 @@ class Chaintip(object):
         """Return an integer value of the highest known block to Chaintip."""
         if self.enabled:
             best, provider = self.get_highest_known_block()
+            if best == 0:
+                return -1
         else:
             # just get this from our geth
             return self.web3.eth.blockNumber
@@ -128,6 +132,7 @@ class Chaintip(object):
             except KeyError:
                 return False
         return False
+
 
     def _get_highest_known_block_infura(self):
         """Get the highest known block from Consensys Infura"""
