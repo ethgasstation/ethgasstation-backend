@@ -236,10 +236,10 @@ def get_gasprice_recs(prediction_table, block_time, block, speed, array5m, array
         elif timeframe == 'safelow':
             label_df = ['s1hago', 'pct_mined_30m', 'total_seen_30m']
         try:
-            series = prediction_table.loc[(prediction_table[label_df[0]] <= 5) & (prediction_table[label_df[1]] > 1) & (prediction_table[label_df[2]] > 10), 'gasprice']
+            series = prediction_table.loc[(prediction_table[label_df[0]] <= 5) & (prediction_table[label_df[1]] > 1) & (prediction_table[label_df[2]] >= 5), 'gasprice']
             txpool = series.min()
-            console.debug("\ncalc value: " + str(calc))
-            console.debug('txpool value: ' + str(txpool))
+            console.debug("calc value: " + str(calc))
+            console.debug("txpool value: " + str(txpool))
             if (txpool < calc):
                 rec = txpool
             elif (txpool > calc) and (prediction_table.loc[prediction_table['gasprice'] == (calc), label_df[0]].values[0] > 15):
@@ -263,8 +263,12 @@ def get_gasprice_recs(prediction_table, block_time, block, speed, array5m, array
         if (safelow < minhash_list.min()):
             safelow = minhash_list.min()
         if minlow >= 0:
+            console.debug("minlow " +str(minlow))
             if safelow < minlow:
                 safelow = minlow
+        if safelow < 1:
+            safelow = 1
+            safelow_txpool = 1
         safelow = float(safelow)
         safelow_txpool = float(safelow_txpool)
         safelow_calc = float(safelow_calc)
@@ -314,10 +318,12 @@ def get_gasprice_recs(prediction_table, block_time, block, speed, array5m, array
         """stabilizes gp estimates over last 20m"""
         try:
             pct50 = np.percentile(gparray, 50)
-
             if gprec <= pct50:
-                pct50 = pct50/10
-                gprec_m = np.ceil(pct50) * 10
+                if pct50 < 10:
+                    gprec_m = np.round(pct50)
+                else:
+                    pct50 = pct50/10
+                    gprec_m = np.ceil(pct50) * 10
             else:
                 pct95 = np.percentile(gparray, 95)
                 if gprec < pct95:

@@ -137,7 +137,8 @@ class SummaryReport(object):
             '0xace62f87abe9f4ee9fd6e115d91548df24ca0943': 'Monaco',
             '0xb9e7f8568e08d5659f5d29c4997173d84cdf2607': 'Swarm City',
             '0x06012c8cf97bead5deae237070f9587f8e7a266d': 'Cryptokitties',
-            '0xb1690c08e213a35ed9bab7b318de14420fb57d8c': 'Cryptokitties Auction'
+            '0xb1690c08e213a35ed9bab7b318de14420fb57d8c': 'Cryptokitties Auction',
+            '0x2a0c0dbecc7e4d658f48e01e3fa353f44050c208': 'IDEX'
         }
         gasguzz = self.tx_df.groupby('to_address').count()
         gasguzz = gasguzz.sort_values('block_mined', ascending = False)

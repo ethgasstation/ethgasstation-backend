@@ -125,7 +125,7 @@ class Timers():
         self.start_block = start_block
         self.current_block = start_block
         self.process_block = start_block
-        self.minlow = 10 #1 gwei
+        self.minlow = 1 #.1 gwei
         self.gp_avg_store = np.array([])
         self.gp_safelow_store = np.array([])
 

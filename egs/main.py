@@ -263,7 +263,7 @@ def master_control(args):
             pass
 
         try:
-            console.debug("Getting filter changes...")
+            #console.debug("Getting filter changes...")
             new_tx_list = web3.eth.getFilterChanges(tx_filter.filter_id)
         except:
             console.warn("pending filter missing, re-establishing filter")
@@ -289,11 +289,11 @@ def master_control(args):
             console.info("sampling 200 from " + str(len(new_tx_list)) + " new tx")
             new_tx_list = random.sample(new_tx_list, 200)
 
-        if new_tx_list:
-            console.debug("Analyzing %d new transactions from txpool." % len(new_tx_list))
+        #if new_tx_list:
+            #console.debug("Analyzing %d new transactions from txpool." % len(new_tx_list))
         for new_tx in new_tx_list:
             try:
-                console.debug("Get Tx %s" % new_tx)
+                #console.debug("Get Tx %s" % new_tx)
                 tx_obj = web3.eth.getTransaction(new_tx)
                 clean_tx = CleanTx(tx_obj, block, timestamp)
                 append_new_tx(clean_tx)
