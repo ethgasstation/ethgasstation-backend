@@ -338,7 +338,7 @@ def get_gasprice_recs(prediction_table, block_time, block, speed, array5m, array
         except Exception as e:
             console.error("check_recent_mediagp: Exception caught: " + str(e))
             gprec_m = gprec
-        console.debug("medianizer: %s" % str(gprec_m))
+        console.info("medianizer: %s" % str(gprec_m))
         return (gprec_m, gparray)
 
     gprecs = {}
