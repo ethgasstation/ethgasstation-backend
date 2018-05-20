@@ -235,23 +235,27 @@ def get_gasprice_recs(prediction_table, block_time, block, speed, array5m, array
             label_df = ['s5mago', 'pct_mined_5m', 'total_seen_5m']
         elif timeframe == 'safelow':
             label_df = ['s1hago', 'pct_mined_30m', 'total_seen_30m']
-        try:
-            series = prediction_table.loc[(prediction_table[label_df[0]] <= 5) & (prediction_table[label_df[1]] > 1) & (prediction_table[label_df[2]] >= 5), 'gasprice']
-            txpool = series.min()
-            console.info("calc value: " + str(calc))
-            console.info("txpool value: " + str(txpool))
-            if (txpool < calc):
-                rec = txpool
-            elif (txpool > calc) and (prediction_table.loc[prediction_table['gasprice'] == (calc), label_df[0]].values[0] > 15):
-                console.warn("txpool > calc")
-                rec = txpool
-            else:
-                rec = calc
-        except Exception as e:
-            console.debug(e)
-            txpool = np.nan
-            rec = np.nan
-        return (rec, txpool)
+        
+        if label_df[0] in prediction_table.columns:
+            try:
+                series = prediction_table.loc[(prediction_table[label_df[0]] <= 5) & (prediction_table[label_df[1]] > 1) & (prediction_table[label_df[2]] >= 5), 'gasprice']
+                txpool = series.min()
+                console.info("calc value: " + str(calc))
+                console.info("txpool value: " + str(txpool))
+                if (txpool < calc):
+                    rec = txpool
+                elif (txpool > calc) and (prediction_table.loc[prediction_table['gasprice'] == (calc), label_df[0]].values[0] > 15):
+                    console.warn("txpool > calc")
+                    rec = txpool
+                else:
+                    rec = calc
+            except Exception as e:
+                console.debug(e)
+                txpool = np.nan
+                rec = np.nan
+            return (rec, txpool)
+        else:
+            return (np.nan, np.nan)
 
 
     def get_safelow():
