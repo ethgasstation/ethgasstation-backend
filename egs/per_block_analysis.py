@@ -395,7 +395,7 @@ def make_recent_blockdf(recentdf, current_txpool, alltx):
         else:
             x = row[0] / row[1] * 100
             return np.round(x)
-
+    recentdf['round_gp_10gwei'] = recentdf['round_gp_10gwei'].astype(int)
     recentdf['still_here'] = recentdf.index.isin(current_txpool.index).astype(int)
     recentdf['mined'] = recentdf.index.isin(alltx.index[alltx['block_mined'].notnull()]).astype(int)
     recentdf = recentdf[['gas_price', 'round_gp_10gwei', 'still_here', 'mined']].groupby('round_gp_10gwei').agg({'gas_price':'count', 'still_here':'sum', 'mined':'sum'})
