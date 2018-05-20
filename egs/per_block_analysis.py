@@ -80,9 +80,9 @@ def check_recent(gasprice, submitted_recent):
     submitted_recent.loc[(submitted_recent['still_here'] >= 1) & (submitted_recent['still_here'] <= 2) & (submitted_recent['total'] < 4), 'pct_unmined'] = np.nan
     maxval = submitted_recent.loc[submitted_recent.index > gasprice, 'pct_unmined'].max()
     if gasprice in submitted_recent.index:
-        stillh = submitted_recent.get_value(gasprice, 'still_here')
+        stillh = submitted_recent.at[gasprice, 'still_here']
         if stillh > 2:
-            rval =  submitted_recent.get_value(gasprice, 'pct_unmined')
+            rval =  submitted_recent.at[gasprice, 'pct_unmined']
         else:
             rval = maxval
     else:
@@ -96,7 +96,7 @@ def check_recent(gasprice, submitted_recent):
 def get_recent_value(gasprice, submitted_recent, col):
     """gets values from recenttx df for prediction table"""
     if gasprice in submitted_recent.index:
-        rval = submitted_recent.get_value(gasprice, col)
+        rval = submitted_recent.at[gasprice, col]
     else:
         rval = 0
     return rval
