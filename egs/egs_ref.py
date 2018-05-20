@@ -11,7 +11,7 @@ import json
 import urllib
 import time
 import string
-from sqlalchemy import create_engine, Column, Integer, String, DECIMAL, BigInteger
+from sqlalchemy import create_engine, Column, Integer, String, Float, DECIMAL, BigInteger
 from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
@@ -23,8 +23,8 @@ class Mined_Sql(Base):
     index = Column(String(75))
     block_mined = Column(Integer)
     block_posted = Column(Integer)
-    expectedTime = Column(DECIMAL(10,5))
-    expectedWait = Column(DECIMAL(10,5))
+    expectedTime = Column(Float)
+    expectedWait = Column(Float)
     mined_probability = Column(DECIMAL(5, 3))
     highgas2 = Column(Integer)
     from_address = Column(String(60))
@@ -64,8 +64,8 @@ class Tx_Sql(Base):
     index = Column(String(75))
     block_mined = Column(Integer)
     block_posted = Column(Integer)
-    expectedTime = Column(DECIMAL(5, 2))
-    expectedWait = Column(DECIMAL(5, 2))
+    expectedTime = Column(Float)
+    expectedWait = Column(Float)
     mined_probability = Column(DECIMAL(5, 3))
     from_address = Column(String(60))
     gas_offered = Column(Integer)
@@ -152,8 +152,8 @@ class CleanTx():
         self.hash = tx_obj.hash
         self.block_posted = block_posted
         self.block_mined = tx_obj.blockNumber
-        self.to_address = tx_obj['to'].lower()
-        self.from_address = tx_obj['from'].lower()
+        self.to_address = tx_obj['to']
+        self.from_address = tx_obj['from']
         self.time_posted = time_posted
         self.gas_price = tx_obj['gasPrice']
         self.gas_offered = tx_obj['gas']

@@ -296,6 +296,7 @@ def master_control(args):
                 #console.debug("Get Tx %s" % new_tx)
                 tx_obj = web3.eth.getTransaction(new_tx)
                 clean_tx = CleanTx(tx_obj, block, timestamp)
+                clean_tx.to_address = clean_tx.to_address.lower()
                 append_new_tx(clean_tx)
             except Exception as e:
                 console.debug("Exception on Tx %s" % new_tx)
