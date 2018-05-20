@@ -10,6 +10,7 @@ import numpy as np
 import json
 import urllib
 import time
+import string
 from sqlalchemy import create_engine, Column, Integer, String, DECIMAL, BigInteger
 from sqlalchemy.ext.declarative import declarative_base
 
@@ -151,8 +152,8 @@ class CleanTx():
         self.hash = tx_obj.hash
         self.block_posted = block_posted
         self.block_mined = tx_obj.blockNumber
-        self.to_address = tx_obj['to']
-        self.from_address = tx_obj['from']
+        self.to_address = tx_obj['to'].lower()
+        self.from_address = tx_obj['from'].lower()
         self.time_posted = time_posted
         self.gas_price = tx_obj['gasPrice']
         self.gas_offered = tx_obj['gas']
