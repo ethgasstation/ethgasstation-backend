@@ -34,6 +34,7 @@ def process_block_transactions(block):
     miner = block_obj.miner
     for transaction in block_obj.transactions:
         clean_tx = CleanTx(transaction, None, None, miner)
+        clean_tx.to_address = clean_tx.to_address.lower()
         block_df = block_df.append(clean_tx.to_dataframe(), ignore_index = False)
     block_df['time_mined'] = block_obj.timestamp
     return(block_df, block_obj)
