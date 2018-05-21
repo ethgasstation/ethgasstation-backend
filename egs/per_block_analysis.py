@@ -75,12 +75,17 @@ def get_tx_atabove(gasprice, txpool_by_gp):
 
 def check_recent(gasprice, submitted_recent):
     """gets the %of transactions unmined submitted in recent blocks"""
-
+    
     #set this to avoid false positive delays
+    #If 1-2 transactions remaining in txpool and total submitted is <3, then pct_unmined is set to nan.
     submitted_recent.loc[(submitted_recent['still_here'] >= 1) & (submitted_recent['still_here'] <= 2) & (submitted_recent['total'] < 4), 'pct_unmined'] = np.nan
+
+    #Find max pct_unmined with higher gas price
     maxval = submitted_recent.loc[submitted_recent.index > gasprice, 'pct_unmined'].max()
+
     if gasprice in submitted_recent.index:
         stillh = submitted_recent.at[gasprice, 'still_here']
+        #sets new pct_unmined if more than 2 transactions still remaining, otherwise sets to max at higher gasprice
         if stillh > 2:
             rval =  submitted_recent.at[gasprice, 'pct_unmined']
         else:
@@ -89,6 +94,7 @@ def check_recent(gasprice, submitted_recent):
         rval = maxval
     if gasprice >= 1000:
         rval = 0
+    #if pct_unmined at gasprice is higher than pct_unmined at higher gasprices, then return it, otherwise return the highest
     if (rval > maxval) or (gasprice >= 1000) :
         return rval
     return maxval
@@ -205,6 +211,7 @@ def make_predcitiontable (hashpower, hpower, avg_timemined, txpool_by_gp, submit
     else:
         txatabove_lookup = None
     if not submitted_5mago.empty:
+        #'s5mago' is label for pct_unmined ; should be renamed
         predictTable['s5mago'] = predictTable['gasprice'].apply(check_recent, args= (submitted_5mago,))
         predictTable['pct_mined_5m'] =  predictTable['gasprice'].apply(get_recent_value, args=(submitted_5mago, 'pct_mined'))
         predictTable['total_seen_5m'] =  predictTable['gasprice'].apply(get_recent_value, args=(submitted_5mago, 'total'))
@@ -238,7 +245,8 @@ def get_gasprice_recs(prediction_table, block_time, block, speed, array5m, array
         
         if label_df[0] in prediction_table.columns:
             try:
-                series = prediction_table.loc[(prediction_table[label_df[0]] <= 5) & (prediction_table[label_df[1]] > 1) & (prediction_table[label_df[2]] >= 5), 'gasprice']
+                #pct_unmined <10%, must have 1% mined (as opposed to dropped), and must have seen at least 5 transactions at the gas price
+                series = prediction_table.loc[(prediction_table[label_df[0]] < 10) & (prediction_table[label_df[1]] > 1) & (prediction_table[label_df[2]] >= 5), 'gasprice']
                 txpool = series.min()
                 console.info("calc value: " + str(calc))
                 console.info("txpool value: " + str(txpool))
