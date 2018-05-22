@@ -282,12 +282,12 @@ def master_control(args):
         elif timer.process_block == (block-3) and len(new_tx_list) > 50:
             console.info("sampling 50 from " + str(len(new_tx_list)) + " new tx")
             new_tx_list = random.sample(new_tx_list, 50)
-        elif timer.process_block == (block-2) and len(new_tx_list) > 75:
-            console.info("sampling 75 from " + str(len(new_tx_list)) + " new tx")
-            new_tx_list = random.sample(new_tx_list, 75)
-        elif timer.process_block == (block-1) and len(new_tx_list) > 100:
+        elif timer.process_block == (block-2) and len(new_tx_list) > 60:
+            console.info("sampling 60 from " + str(len(new_tx_list)) + " new tx")
+            new_tx_list = random.sample(new_tx_list, 60)
+        elif timer.process_block == (block-1) and len(new_tx_list) > 70:
             console.info("sampling 100 from " + str(len(new_tx_list)) + " new tx")
-            new_tx_list = random.sample(new_tx_list, 100)
+            new_tx_list = random.sample(new_tx_list, 70)
 
         #if new_tx_list:
             #console.debug("Analyzing %d new transactions from txpool." % len(new_tx_list))
