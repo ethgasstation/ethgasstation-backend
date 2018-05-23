@@ -34,6 +34,7 @@ def process_block_transactions(block):
     miner = block_obj.miner
     for transaction in block_obj.transactions:
         clean_tx = CleanTx(transaction, None, None, miner)
+        clean_tx.to_address = clean_tx.to_address.lower()
         block_df = block_df.append(clean_tx.to_dataframe(), ignore_index = False)
     block_df['time_mined'] = block_obj.timestamp
     return(block_df, block_obj)
@@ -75,20 +76,26 @@ def get_tx_atabove(gasprice, txpool_by_gp):
 
 def check_recent(gasprice, submitted_recent):
     """gets the %of transactions unmined submitted in recent blocks"""
-
+    
     #set this to avoid false positive delays
+    #If 1-2 transactions remaining in txpool and total submitted is <3, then pct_unmined is set to nan.
     submitted_recent.loc[(submitted_recent['still_here'] >= 1) & (submitted_recent['still_here'] <= 2) & (submitted_recent['total'] < 4), 'pct_unmined'] = np.nan
+
+    #Find max pct_unmined with higher gas price
     maxval = submitted_recent.loc[submitted_recent.index > gasprice, 'pct_unmined'].max()
+
     if gasprice in submitted_recent.index:
-        stillh = submitted_recent.get_value(gasprice, 'still_here')
+        stillh = submitted_recent.at[gasprice, 'still_here']
+        #sets new pct_unmined if more than 2 transactions still remaining, otherwise sets to max at higher gasprice
         if stillh > 2:
-            rval =  submitted_recent.get_value(gasprice, 'pct_unmined')
+            rval =  submitted_recent.at[gasprice, 'pct_unmined']
         else:
             rval = maxval
     else:
         rval = maxval
     if gasprice >= 1000:
         rval = 0
+    #if pct_unmined at gasprice is higher than pct_unmined at higher gasprices, then return it, otherwise return the highest
     if (rval > maxval) or (gasprice >= 1000) :
         return rval
     return maxval
@@ -96,7 +103,7 @@ def check_recent(gasprice, submitted_recent):
 def get_recent_value(gasprice, submitted_recent, col):
     """gets values from recenttx df for prediction table"""
     if gasprice in submitted_recent.index:
-        rval = submitted_recent.get_value(gasprice, col)
+        rval = submitted_recent.at[gasprice, col]
     else:
         rval = 0
     return rval
@@ -205,6 +212,7 @@ def make_predcitiontable (hashpower, hpower, avg_timemined, txpool_by_gp, submit
     else:
         txatabove_lookup = None
     if not submitted_5mago.empty:
+        #'s5mago' is label for pct_unmined ; should be renamed
         predictTable['s5mago'] = predictTable['gasprice'].apply(check_recent, args= (submitted_5mago,))
         predictTable['pct_mined_5m'] =  predictTable['gasprice'].apply(get_recent_value, args=(submitted_5mago, 'pct_mined'))
         predictTable['total_seen_5m'] =  predictTable['gasprice'].apply(get_recent_value, args=(submitted_5mago, 'total'))
@@ -235,22 +243,28 @@ def get_gasprice_recs(prediction_table, block_time, block, speed, array5m, array
             label_df = ['s5mago', 'pct_mined_5m', 'total_seen_5m']
         elif timeframe == 'safelow':
             label_df = ['s1hago', 'pct_mined_30m', 'total_seen_30m']
-        try:
-            series = prediction_table.loc[(prediction_table[label_df[0]] <= 5) & (prediction_table[label_df[1]] > 1) & (prediction_table[label_df[2]] >= 5), 'gasprice']
-            txpool = series.min()
-            console.debug("calc value: " + str(calc))
-            console.debug("txpool value: " + str(txpool))
-            if (txpool < calc):
-                rec = txpool
-            elif (txpool > calc) and (prediction_table.loc[prediction_table['gasprice'] == (calc), label_df[0]].values[0] > 15):
-                console.warn("txpool > calc")
-                rec = txpool
-            else:
-                rec = calc
-        except Exception as e:
-            txpool = np.nan
-            rec = np.nan
-        return (rec, txpool)
+        
+        if label_df[0] in prediction_table.columns:
+            try:
+                #pct_unmined <10%, must have 1% mined (as opposed to dropped), and must have seen at least 5 transactions at the gas price
+                series = prediction_table.loc[(prediction_table[label_df[0]] < 10) & (prediction_table[label_df[1]] > 1) & (prediction_table[label_df[2]] >= 5), 'gasprice']
+                txpool = series.min()
+                console.info("calc value: " + str(calc))
+                console.info("txpool value: " + str(txpool))
+                if (txpool < calc):
+                    rec = txpool
+                elif (txpool > calc) and (prediction_table.loc[prediction_table['gasprice'] == (calc), label_df[0]].values[0] > 15):
+                    console.warn("txpool > calc")
+                    rec = txpool
+                else:
+                    rec = calc
+            except Exception as e:
+                console.debug(e)
+                txpool = np.nan
+                rec = np.nan
+            return (rec, txpool)
+        else:
+            return (np.nan, np.nan)
 
 
     def get_safelow():
@@ -338,7 +352,7 @@ def get_gasprice_recs(prediction_table, block_time, block, speed, array5m, array
         except Exception as e:
             console.error("check_recent_mediagp: Exception caught: " + str(e))
             gprec_m = gprec
-        console.debug("medianizer: %s" % str(gprec_m))
+        console.info("medianizer: %s" % str(gprec_m))
         return (gprec_m, gparray)
 
     gprecs = {}
@@ -390,7 +404,7 @@ def make_recent_blockdf(recentdf, current_txpool, alltx):
         else:
             x = row[0] / row[1] * 100
             return np.round(x)
-
+    recentdf['round_gp_10gwei'] = recentdf['round_gp_10gwei'].astype(int)
     recentdf['still_here'] = recentdf.index.isin(current_txpool.index).astype(int)
     recentdf['mined'] = recentdf.index.isin(alltx.index[alltx['block_mined'].notnull()]).astype(int)
     recentdf = recentdf[['gas_price', 'round_gp_10gwei', 'still_here', 'mined']].groupby('round_gp_10gwei').agg({'gas_price':'count', 'still_here':'sum', 'mined':'sum'})
