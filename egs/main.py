@@ -167,12 +167,12 @@ def master_control(args):
             submitted_5mago = alltx.loc[(alltx['block_posted'] < (block-8)) & (alltx['block_posted'] > (block-49)) & (alltx['chained']==0) & (alltx['gas_offered'] < 500000)].copy()
             console.info("# of tx submitted ~ 5m ago: " + str((len(submitted_5mago))))
 
-            if len(submitted_30mago > 50):
+            if ((len(submitted_30mago) > 50) & (len(current_txpool) > 100)):
                 submitted_30mago = make_recent_blockdf(submitted_30mago, current_txpool, alltx)
             else:
                 submitted_30mago = pd.DataFrame()
 
-            if len(submitted_5mago > 50):
+            if ((len(submitted_5mago) > 50) & (len(current_txpool)> 100)):
                 submitted_5mago = make_recent_blockdf(submitted_5mago, current_txpool, alltx)
             else:
                 submitted_5mago = pd.DataFrame()
@@ -263,7 +263,7 @@ def master_control(args):
             pass
 
         try:
-            console.debug("Getting filter changes...")
+            #console.debug("Getting filter changes...")
             new_tx_list = web3.eth.getFilterChanges(tx_filter.filter_id)
         except:
             console.warn("pending filter missing, re-establishing filter")
@@ -282,20 +282,21 @@ def master_control(args):
         elif timer.process_block == (block-3) and len(new_tx_list) > 50:
             console.info("sampling 50 from " + str(len(new_tx_list)) + " new tx")
             new_tx_list = random.sample(new_tx_list, 50)
-        elif timer.process_block == (block-2) and len(new_tx_list) > 100:
+        elif timer.process_block == (block-2) and len(new_tx_list) > 60:
+            console.info("sampling 60 from " + str(len(new_tx_list)) + " new tx")
+            new_tx_list = random.sample(new_tx_list, 60)
+        elif timer.process_block == (block-1) and len(new_tx_list) > 70:
             console.info("sampling 100 from " + str(len(new_tx_list)) + " new tx")
-            new_tx_list = random.sample(new_tx_list, 100)
-        elif timer.process_block == (block-1) and len(new_tx_list) > 200:
-            console.info("sampling 200 from " + str(len(new_tx_list)) + " new tx")
-            new_tx_list = random.sample(new_tx_list, 200)
+            new_tx_list = random.sample(new_tx_list, 70)
 
-        if new_tx_list:
-            console.debug("Analyzing %d new transactions from txpool." % len(new_tx_list))
+        #if new_tx_list:
+            #console.debug("Analyzing %d new transactions from txpool." % len(new_tx_list))
         for new_tx in new_tx_list:
             try:
-                console.debug("Get Tx %s" % new_tx)
+                #console.debug("Get Tx %s" % new_tx)
                 tx_obj = web3.eth.getTransaction(new_tx)
                 clean_tx = CleanTx(tx_obj, block, timestamp)
+                clean_tx.to_address = clean_tx.to_address.lower()
                 append_new_tx(clean_tx)
             except Exception as e:
                 console.debug("Exception on Tx %s" % new_tx)

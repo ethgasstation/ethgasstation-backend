@@ -10,7 +10,8 @@ import numpy as np
 import json
 import urllib
 import time
-from sqlalchemy import create_engine, Column, Integer, String, DECIMAL, BigInteger
+import string
+from sqlalchemy import create_engine, Column, Integer, String, Float, DECIMAL, BigInteger
 from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
@@ -22,8 +23,8 @@ class Mined_Sql(Base):
     index = Column(String(75))
     block_mined = Column(Integer)
     block_posted = Column(Integer)
-    expectedTime = Column(DECIMAL(5, 2))
-    expectedWait = Column(DECIMAL(5, 2))
+    expectedTime = Column(Float)
+    expectedWait = Column(Float)
     mined_probability = Column(DECIMAL(5, 3))
     highgas2 = Column(Integer)
     from_address = Column(String(60))
@@ -63,8 +64,8 @@ class Tx_Sql(Base):
     index = Column(String(75))
     block_mined = Column(Integer)
     block_posted = Column(Integer)
-    expectedTime = Column(DECIMAL(5, 2))
-    expectedWait = Column(DECIMAL(5, 2))
+    expectedTime = Column(Float)
+    expectedWait = Column(Float)
     mined_probability = Column(DECIMAL(5, 3))
     from_address = Column(String(60))
     gas_offered = Column(Integer)
@@ -125,7 +126,7 @@ class Timers():
         self.start_block = start_block
         self.current_block = start_block
         self.process_block = start_block
-        self.minlow = 10 #1 gwei
+        self.minlow = 1 #.1 gwei
         self.gp_avg_store = np.array([])
         self.gp_safelow_store = np.array([])
 
@@ -168,10 +169,10 @@ class CleanTx():
         """Rounds the gas price to gwei"""
         gp = self.gas_price/1e8
         if gp >= 1 and gp < 10:
-            gp = np.ceil(gp)
+            gp = int(np.ceil(gp))
         elif gp >= 10:
             gp = gp/10
-            gp = np.ceil(gp)
+            gp = int(np.ceil(gp))
             gp = gp*10
         else:
             gp = 0
