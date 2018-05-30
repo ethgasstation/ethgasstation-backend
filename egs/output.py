@@ -33,7 +33,7 @@ class Output(object):
         if level <= self.loglevel:
             # TODO use stderr, stdout properly
             # TODO use logging
-            print(msg)
+            print(msg, flush=True)
 
     def warn(self, msg):
         msg = self._pad(msg)

@@ -8,6 +8,7 @@ v0 API, and similar legacy services.
 
 import json
 import os
+from hexbytes import HexBytes
 from urllib.parse import urlparse
 
 import redis
@@ -71,6 +72,12 @@ class JSONExporter(object):
         if isinstance(mixed, str):
             # serialize to validate is JSON
             mixed = json.loads(mixed)
+        elif isinstance(mixed, dict):
+            # web3 3.x -> 4.x: bytes() is not serializable
+            # first-degree HexBytes check as a final trap
+            for attr, value in mixed.items():
+                if isinstance(value, HexBytes):
+                    mixed[attr] = value.hex().lower()
         return json.dumps(mixed)
 
     def _connect_redis(self, force_reconnect=False):
