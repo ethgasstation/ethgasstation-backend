@@ -260,7 +260,7 @@ def get_gasprice_recs(prediction_table, block_time, block, speed, array5m, array
                 else:
                     rec = calc
             except Exception as e:
-                console.debug(e)
+                console.error(e)
                 txpool = np.nan
                 rec = np.nan
             return (rec, txpool)
