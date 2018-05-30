@@ -270,11 +270,11 @@ def master_control(args):
             console.debug("Caught get txhash exception.")
 
         try:
-            console.debug("Getting filter changes...")
+            # console.debug("Getting filter changes...")
             new_tx_list = tx_filter.get_new_entries()
         except:
             # filters suck. The node can kill them whenever it wants.
-            console.warn("pending filter missing, re-establishing filter")
+            console.warn("Pending transaction filter missing, re-establishing filter")
             tx_filter = web3.eth.filter('pending')
             new_tx_list = tx_filter.get_new_entries()
 
@@ -303,7 +303,7 @@ def master_control(args):
             try:
                 # web3 4: hexbytes to hex
                 txhash_str = new_tx.hex().lower()
-                console.debug("Get Tx %s" % txhash_str)
+                # console.debug("Get Tx %s" % txhash_str)
                 # TODO: batch these Txs
                 tx_obj = web3.eth.getTransaction(txhash_str)
                 if tx_obj is not None:
