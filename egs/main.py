@@ -139,6 +139,8 @@ def master_control(args):
         nonlocal blockdata
         nonlocal timer
         got_txpool = 1
+        last_prune = None
+        prune_interval = 300
 
         console.info('updating dataframes at block '+ str(block))
         try:
@@ -241,8 +243,11 @@ def master_control(args):
             write_to_sql(alltx, block_sumdf, mined_blockdf, block)
 
             #keep from getting too large
-            console.debug("Pruning database")
-            (blockdata, alltx, txpool) = prune_data(blockdata, alltx, txpool, block)
+            now = time.time()
+            if last_prune is None or last_prune + prune_interval<= now:
+                console.debug("Pruning database")
+                last_prune = now
+                (blockdata, alltx, txpool) = prune_data(blockdata, alltx, txpool, block)
             return True
 
         except:
@@ -328,4 +333,4 @@ def master_control(args):
             timer.process_block = (block-1)
 
         # Wait a small amount before asking for filter changes.
-        time.sleep(0.3)
+        time.sleep(0.5)
