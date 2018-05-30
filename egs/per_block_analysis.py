@@ -23,8 +23,10 @@ def get_txhashes_from_txpool(block):
         txpool_current = pd.DataFrame(index = hashlist)
         txpool_current['block'] = block
         return txpool_current
-    except:
-        return None
+    except Exception as e:
+        console.error("Exception raised in get_txhashes_from_txpool")
+        console.error(str(e))
+        return []
 
 
 def process_block_transactions(block):

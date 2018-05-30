@@ -169,12 +169,12 @@ def master_control(args):
             submitted_5mago = alltx.loc[(alltx['block_posted'] < (block-8)) & (alltx['block_posted'] > (block-49)) & (alltx['chained']==0) & (alltx['gas_offered'] < 500000)].copy()
             console.info("# of tx submitted ~ 5m ago: " + str((len(submitted_5mago))))
 
-            if ((len(submitted_30mago) > 50) & (len(current_txpool) > 100)):
+            if ((len(submitted_30mago) > 50) and (len(current_txpool) > 100)):
                 submitted_30mago = make_recent_blockdf(submitted_30mago, current_txpool, alltx)
             else:
                 submitted_30mago = pd.DataFrame()
 
-            if ((len(submitted_5mago) > 50) & (len(current_txpool)> 100)):
+            if ((len(submitted_5mago) > 50) and (len(current_txpool)> 100)):
                 submitted_5mago = make_recent_blockdf(submitted_5mago, current_txpool, alltx)
             else:
                 submitted_5mago = pd.DataFrame()
