@@ -148,12 +148,17 @@ class Timers():
 
 class CleanTx():
     """transaction object / methods for pandas"""
+    to_address = None
+    from_address = None
+
     def __init__(self, tx_obj, block_posted=None, time_posted=None, miner=None):
         self.hash = tx_obj.hash
         self.block_posted = block_posted
         self.block_mined = tx_obj.blockNumber
-        self.to_address = tx_obj['to']
-        self.from_address = tx_obj['from']
+        if 'to' in tx_obj and isinstance(tx_obj['to'], str):
+            self.to_address = tx_obj['to'].lower()
+        if 'from' in tx_obj and isinstance(tx_obj['from'], str):
+            self.from_address = tx_obj['from'].lower()
         self.time_posted = time_posted
         self.gas_price = tx_obj['gasPrice']
         self.gas_offered = tx_obj['gas']

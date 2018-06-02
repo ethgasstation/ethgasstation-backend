@@ -2,7 +2,7 @@ import configparser
 import os
 import sys
 
-from web3 import Web3, HTTPProvider
+from web3 import Web3, HTTPProvider, WebsocketProvider, IPCProvider
 
 parser_instance = None
 settings_loaded = False
@@ -61,15 +61,36 @@ def get_settings_filepath():
             return candidate_location
     raise FileNotFoundError("Cannot find EthGasStation settings file.")
 
-def get_web3_provider():
-    """Get Web3 instance."""
-    web3 = Web3(
-        HTTPProvider(
-            "%s://%s:%s" % (
-                get_setting('geth', 'protocol'),
-                get_setting('geth', 'hostname'),
-                get_setting('geth', 'port'))))
-    return web3
+def get_web3_provider(protocol=None, hostname=None, port=None):
+    """Get Web3 instance. Supports websocket, http, ipc."""
+    if protocol is None:
+        protocol = get_setting('geth', 'protocol')
+    if hostname is None:
+        hostname = get_setting('geth', 'hostname')
+    if port is None:
+        port = get_setting('geth', 'port')
+
+    if protocol == 'ws' or protocol == 'wss':
+        return Web3(
+            WebsocketProvider(
+              "%s://%s:%s" % (
+                protocol, 
+                hostname, 
+                port)))
+    elif protocol == 'http' or protocol == 'https':
+        return Web3(
+            HTTPProvider(
+                "%s://%s:%s" % (
+                    protocol,
+                    hostname,
+                    port)))
+    elif protocol == 'ipc':
+        return Web3(
+            IPCProvider(
+                hostname
+            ))
+    else:
+        raise Exception("Can't set web3 provider type %s" % str(protocol))
 
 def get_mysql_connstr():
     """Get a MySQL connection string for SQLAlchemy, or short circuit to

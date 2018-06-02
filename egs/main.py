@@ -12,6 +12,7 @@ import os
 import random
 import pandas as pd
 import numpy as np
+import binascii
 
 import egs.settings
 egs.settings.load_settings()
@@ -25,6 +26,7 @@ from .jsonexporter import JSONExporter, JSONExporterException
 from .report_generator import SummaryReport
 from .per_block_analysis import *
 from .output import Output, OutputException
+from .txbatch import TxBatch
 
 
 # configure necessary services
@@ -124,6 +126,7 @@ def master_control(args):
     start_time = time.time()
     first_cycle = True
     analyzed = 0
+    last_prune = None
 
 
     def append_new_tx(clean_tx):
@@ -133,10 +136,14 @@ def master_control(args):
 
     def update_dataframes(block):
         nonlocal alltx
+        nonlocal current_txpool
         nonlocal txpool
         nonlocal blockdata
         nonlocal timer
+        nonlocal last_prune
+
         got_txpool = 1
+        prune_interval = 300
 
         console.info('updating dataframes at block '+ str(block))
         try:
@@ -167,12 +174,12 @@ def master_control(args):
             submitted_5mago = alltx.loc[(alltx['block_posted'] < (block-8)) & (alltx['block_posted'] > (block-49)) & (alltx['chained']==0) & (alltx['gas_offered'] < 500000)].copy()
             console.info("# of tx submitted ~ 5m ago: " + str((len(submitted_5mago))))
 
-            if ((len(submitted_30mago) > 50) & (len(current_txpool) > 100)):
+            if ((len(submitted_30mago) > 50) and (len(current_txpool) > 100)):
                 submitted_30mago = make_recent_blockdf(submitted_30mago, current_txpool, alltx)
             else:
                 submitted_30mago = pd.DataFrame()
 
-            if ((len(submitted_5mago) > 50) & (len(current_txpool)> 100)):
+            if ((len(submitted_5mago) > 50) and (len(current_txpool)> 100)):
                 submitted_5mago = make_recent_blockdf(submitted_5mago, current_txpool, alltx)
             else:
                 submitted_5mago = pd.DataFrame()
@@ -192,7 +199,7 @@ def master_control(args):
                 got_txpool = 0
 
             #make prediction table and create lookups to speed txpool analysis
-            (predictiondf, txatabove_lookup, gp_lookup, gp_lookup2) = make_predcitiontable(hashpower, hpower2, block_time, txpool_by_gp, submitted_5mago, submitted_30mago)
+            (predictiondf, txatabove_lookup, gp_lookup, gp_lookup2) = make_predictiontable(hashpower, hpower2, block_time, txpool_by_gp, submitted_5mago, submitted_30mago)
 
             #with pd.option_context('display.max_rows', None,):
                 #print(predictiondf)
@@ -239,8 +246,11 @@ def master_control(args):
             write_to_sql(alltx, block_sumdf, mined_blockdf, block)
 
             #keep from getting too large
-            console.debug("Pruning database")
-            (blockdata, alltx, txpool) = prune_data(blockdata, alltx, txpool, block)
+            now = time.time()
+            if last_prune is None or (last_prune + prune_interval) <= now:
+                console.debug("Pruning database")
+                last_prune = now
+                (blockdata, alltx, txpool) = prune_data(blockdata, alltx, txpool, block)
             return True
 
         except:
@@ -260,15 +270,17 @@ def master_control(args):
                 console.info("done. length = " +str(len(current_txpool)))
                 txpool = txpool.append(current_txpool, ignore_index = False)
         except:
-            pass
+            console.error("Caught get txhash exception.")
+
 
         try:
-            #console.debug("Getting filter changes...")
-            new_tx_list = web3.eth.getFilterChanges(tx_filter.filter_id)
+            # console.debug("Getting filter changes...")
+            new_tx_list = tx_filter.get_new_entries()
         except:
-            console.warn("pending filter missing, re-establishing filter")
+            # filters suck. The node can kill them whenever it wants.
+            console.warn("Pending transaction filter missing, re-establishing filter")
             tx_filter = web3.eth.filter('pending')
-            new_tx_list = web3.eth.getFilterChanges(tx_filter.filter_id)
+            new_tx_list = tx_filter.get_new_entries()
 
         timestamp = time.time()
 
@@ -288,18 +300,33 @@ def master_control(args):
         elif timer.process_block == (block-1) and len(new_tx_list) > 70:
             console.info("sampling 100 from " + str(len(new_tx_list)) + " new tx")
             new_tx_list = random.sample(new_tx_list, 70)
+        elif len(new_tx_list) > 0:
+            console.debug("analyzing all from " + str(len(new_tx_list)) + " new tx")
 
         #if new_tx_list:
             #console.debug("Analyzing %d new transactions from txpool." % len(new_tx_list))
-        for new_tx in new_tx_list:
-            try:
-                #console.debug("Get Tx %s" % new_tx)
-                tx_obj = web3.eth.getTransaction(new_tx)
-                clean_tx = CleanTx(tx_obj, block, timestamp)
-                clean_tx.to_address = clean_tx.to_address.lower()
-                append_new_tx(clean_tx)
+        tx_retrieved = 0
+        tx_failed = 0
+
+        if len(new_tx_list):
+            txbatchrequest = TxBatch(web3)
+            txbatchrequest.addTxHashes(new_tx_list)
+            try: 
+                results = txbatchrequest.getTransactions()
+                for txhash, txobject in results.items():
+                    if txobject is not None:
+                        clean_tx = CleanTx(txobject, block, timestamp)
+                        append_new_tx(clean_tx)
+                        tx_retrieved += 1
+                    else:
+                        tx_failed += 1
             except Exception as e:
-                console.debug("Exception on Tx %s" % new_tx)
+                raise e
+                console.error("Batch transaction failed.")
+            del txbatchrequest
+        
+        if tx_failed > 0:
+            console.debug("Failed to get tx data for %d of %d transactions in new_tx_list." % (tx_failed, (tx_retrieved + tx_failed)))
 
         first_cycle = False
 
@@ -318,3 +345,6 @@ def master_control(args):
         if (timer.process_block < (block - 8)):
             console.warn("blocks jumped, skipping ahead")
             timer.process_block = (block-1)
+
+        # Wait a small amount before asking for filter changes.
+        time.sleep(0.5)

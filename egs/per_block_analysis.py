@@ -23,8 +23,10 @@ def get_txhashes_from_txpool(block):
         txpool_current = pd.DataFrame(index = hashlist)
         txpool_current['block'] = block
         return txpool_current
-    except:
-        return None
+    except Exception as e:
+        console.error("Exception raised in get_txhashes_from_txpool")
+        console.error(str(e))
+        return []
 
 
 def process_block_transactions(block):
@@ -34,10 +36,9 @@ def process_block_transactions(block):
     miner = block_obj.miner
     for transaction in block_obj.transactions:
         clean_tx = CleanTx(transaction, None, None, miner)
-        clean_tx.to_address = clean_tx.to_address.lower()
         block_df = block_df.append(clean_tx.to_dataframe(), ignore_index = False)
     block_df['time_mined'] = block_obj.timestamp
-    return(block_df, block_obj)
+    return (block_df, block_obj)
 
 def process_block_data(block_df, block_obj):
     """process block to dataframe"""
@@ -195,7 +196,7 @@ def analyze_nonce(txpool_block, txpool_block_nonce):
     return txpool_block
 
 
-def make_predcitiontable (hashpower, hpower, avg_timemined, txpool_by_gp, submitted_5mago, submitted_30mago):
+def make_predictiontable (hashpower, hpower, avg_timemined, txpool_by_gp, submitted_5mago, submitted_30mago):
     """makes prediction table for confirmations based on parameters"""
     predictTable = pd.DataFrame({'gasprice' :  range(10, 1010, 10)})
     ptable2 = pd.DataFrame({'gasprice' : range(0, 10, 1)})
@@ -259,7 +260,7 @@ def get_gasprice_recs(prediction_table, block_time, block, speed, array5m, array
                 else:
                     rec = calc
             except Exception as e:
-                console.debug(e)
+                console.error(e)
                 txpool = np.nan
                 rec = np.nan
             return (rec, txpool)
