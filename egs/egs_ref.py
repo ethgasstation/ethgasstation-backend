@@ -152,7 +152,7 @@ class CleanTx():
     from_address = None
 
     def __init__(self, tx_obj, block_posted=None, time_posted=None, miner=None):
-        self.hash = tx_obj.hash
+        self.hash = tx_obj.hash.hex()
         self.block_posted = block_posted
         self.block_mined = tx_obj.blockNumber
         if 'to' in tx_obj and isinstance(tx_obj['to'], str):
@@ -192,7 +192,7 @@ class CleanBlock():
         self.time_mined = timemined
         self.gaslimit = block_obj.gasLimit 
         self.numtx = numtx
-        self.blockhash = block_obj.hash
+        self.blockhash = block_obj.hash.hex()
         self.mingasprice = mingasprice
         self.uncsreported = len(block_obj.uncles)
         self.blockfee = block_obj.gasUsed * weightedgp / 1e10
