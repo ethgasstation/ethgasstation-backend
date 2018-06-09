@@ -104,7 +104,7 @@ class TxBatch(object):
                     strlen = len(value)
                     if strlen == 66:
                         result[key] = HexBytes(value)
-                    elif strlen > 3 and value[0:2] == '0x':
+                    elif strlen >= 3 and value[0:2] == '0x':
                         result[key] = int(value, 16)
         return result
 
