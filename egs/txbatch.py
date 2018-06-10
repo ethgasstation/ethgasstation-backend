@@ -4,8 +4,10 @@ from web3 import Web3, HTTPProvider
 from eth_utils import is_dict
 from web3.utils.datastructures import AttributeDict
 from web3.utils.toolz import assoc
-
+from .output import Output, OutputException
 from hexbytes import HexBytes
+
+console = Output()
 
 class TxBatch(object):
     """An extremely simple JSON-RPC batch request for web3.eth.getTransaction, to use until web3 adds batch."""
@@ -60,7 +62,7 @@ class TxBatch(object):
             idx += 1
         results = self._postBatch(req_list)
         if results is False:
-            raise TxBatchError("Transaction batch request failed")
+            console.warn("Transaction batch request failed")
         
         req_results = {}
         for result in results:
