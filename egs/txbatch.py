@@ -80,10 +80,14 @@ class TxBatch(object):
 
     def _postBatch(self, post_data_object):
         """Make a batch JSON-RPC request to the geth endpoint."""
-        res = requests.post(self.endpoint_uri, json=post_data_object, timeout=5)
-        if res.status_code == 200:
-            return res.json()
-        else:
+        try:
+            res = requests.post(self.endpoint_uri, json=post_data_object, timeout=5)
+            if res.status_code == 200:
+                return res.json()
+            else:
+                return False
+        except Exception as e:
+            console.warn ("post_batch failure")
             return False
     
     def _setRequestFromProvider(self, web3_provider):
