@@ -63,6 +63,7 @@ class TxBatch(object):
         results = self._postBatch(req_list)
         if results is False:
             console.warn("Transaction batch request failed")
+            return {}
         
         req_results = {}
         for result in results:
