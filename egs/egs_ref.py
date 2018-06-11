@@ -188,7 +188,8 @@ class CleanBlock():
     def __init__(self, block_obj, main, uncle, timemined, mingasprice=None, numtx = None, weightedgp=None, includedblock=None):
         self.block_number = block_obj.number 
         self.gasused = block_obj.gasUsed
-        self.miner = block_obj.miner
+        if 'miner' in block_obj and isinstance(block_obj['miner'], str):
+            self.miner = block_obj.miner.lower()
         self.time_mined = timemined
         self.gaslimit = block_obj.gasLimit 
         self.numtx = numtx
