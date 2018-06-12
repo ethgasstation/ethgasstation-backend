@@ -79,8 +79,8 @@ def check_recent(gasprice, submitted_recent):
     """gets the %of transactions unmined submitted in recent blocks"""
     
     #set this to avoid false positive delays
-    #If 1-2 transactions remaining in txpool and total submitted is <3, then pct_unmined is set to nan.
-    submitted_recent.loc[(submitted_recent['still_here'] >= 1) & (submitted_recent['still_here'] <= 2) & (submitted_recent['total'] < 4), 'pct_unmined'] = np.nan
+    #If 1-4 transactions remaining in txpool and total submitted is <8, then pct_unmined is set to nan.
+    submitted_recent.loc[(submitted_recent['still_here'] >= 1) & (submitted_recent['still_here'] <= 4) & (submitted_recent['total'] < 8), 'pct_unmined'] = np.nan
 
     #Find max pct_unmined with higher gas price
     maxval = submitted_recent.loc[submitted_recent.index > gasprice, 'pct_unmined'].max()
