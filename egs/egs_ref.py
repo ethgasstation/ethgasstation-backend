@@ -163,7 +163,10 @@ class CleanTx():
         self.gas_price = tx_obj['gasPrice']
         self.gas_offered = tx_obj['gas']
         self.round_gp_10gwei()
-        self.miner = miner
+        if isinstance(miner, str):
+            self.miner = miner.lower()
+        else:
+            self.miner = miner
         self.nonce = tx_obj['nonce']
 
     def to_dataframe(self):
