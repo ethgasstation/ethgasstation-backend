@@ -308,6 +308,9 @@ def master_control(args):
         tx_retrieved = 0
         tx_failed = 0
 
+        if (len(new_tx_list) > 500):
+            new_tx_list = random.sample(new_tx_list, 500)
+
         if len(new_tx_list):
             txbatchrequest = TxBatch(web3)
             txbatchrequest.addTxHashes(new_tx_list)

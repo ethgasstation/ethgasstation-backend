@@ -87,7 +87,7 @@ class TxBatch(object):
             else:
                 return False
         except Exception as e:
-            print (e)
+            console.warn (e)
             console.warn ("post_batch failure")
             return False
     
