@@ -15,11 +15,6 @@ class TxBatch(object):
     req = None
     web3 = None
 
-    endpoint_uri = None
-    tx_lock = False
-
-    tx_hashes = []
-
     def __init__(self, web3_provider=None):
         """Initialise a TxBatch."""
         if web3_provider is None:
@@ -27,34 +22,21 @@ class TxBatch(object):
         else:
             self.web3 = web3_provider
         self._setRequestFromProvider(self.web3)
+    
 
-    def addTxHash(self, txHash):
-        """Add a transaction hash to the pool of those to retrieve."""
-        if isinstance(txHash, HexBytes):
-            self.tx_hashes.append(txHash.hex().lower())
-        elif isinstance(txHash, str):
-            self.tx_hashes.append(txHash.lower())
-        else:
-            raise TypeError("TxBatch.addTxHash: txHash is not a string or HexBytes")
-
-    def addTxHashes(self, txHashes):
-        """Queue a list of hashes for a transaction batch request."""
-        for txHash in txHashes:
-            self.addTxHash(txHash)
-
-    def getTransactions(self, clear_batch_hashes=True):
-        """Get all transactions queued with addTxHash/addTxHashes."""
-        if len(self.tx_hashes) == 0:
+    def batchRequest(self, method, hex_list):
+        """submit and process batchRequest."""
+        if len(hex_list) == 0:
             # there's no reason to go make a request for an
             # empty batch.
             return {}
 
         req_list = []
         idx = 0
-        for tx_hash in self.tx_hashes:
+        for tx_hash in hex_list:
             req = {
                 'json-rpc': '2.0',
-                'method': 'eth_getTransactionByHash',
+                'method': method,
                 'params': [ tx_hash ],
                 'id': idx
             }
@@ -67,14 +49,11 @@ class TxBatch(object):
         
         req_results = {}
         for result in results:
-            key = self.tx_hashes[int(result['id'])]
+            key = hex_list[int(result['id'])]
             value = self._castAttributeDict(
                         self._formatTransactionResult(
                             result['result']))
             req_results[key] = value
-
-        if clear_batch_hashes is True:
-            self.tx_hashes.clear()
 
         return req_results
 
@@ -107,6 +86,7 @@ class TxBatch(object):
     def _formatTransactionResult(self, result):
         """Get proper types from returned hex."""
         if isinstance(result, dict):
+            print(result)
             for key, value in result.items():
                 if isinstance(value, str):
                     strlen = len(value)
@@ -114,6 +94,8 @@ class TxBatch(object):
                         result[key] = HexBytes(value)
                     elif strlen >= 3 and value[0:2] == '0x':
                         result[key] = int(value, 16)
+        print(result)
+        quit()
         return result
 
 class TxBatchError(Exception):
