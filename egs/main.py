@@ -2,7 +2,7 @@
 ETH Gas Station
 Main Event Loop
 """
-
+import sys
 import traceback
 from .egs_ref import *
 from .output import Output, OutputException
@@ -19,12 +19,9 @@ def master_control(args):
     txpool = TxpoolContainer()
     array5m = []
     array30m = []
-    console.info('blocks '+ str(len(blockdata.df)))
+    console.info("Type ctl-c to quit and save data to mysql")
+    console.info('blocks '+ str(len(blockdata.blockdata_df)))
     console.info('txcount '+ str(len(alltx.df)))
-
-    start_time = time.time()
-    analyzed = 0
-    last_prune = None
 
     while True:
         try:
@@ -32,37 +29,67 @@ def master_control(args):
             txpool.append_current_txp() 
             #add new pending transactions until new block arrives
             alltx.listen() 
-            print("hi")
+            #process pending transactions
             alltx.process_submitted_block()
             #process blocks mined transactions
             alltx.process_mined_transactions() 
             #create summary stats for mined block
-            blockdata.process_block_data()
+            blockdata.process_block_data(alltx.minedblock_tx_df, alltx.block_obj)
             #create summary stats for last 200 blocks 
-            blockdata.analyze_last200blocks() 
+            blockdata.analyze_last200blocks(alltx.process_block) 
              # create summary stats for transactions in last 100 blocks
             alltx.analyzetx_last100blocks()
             #stats for transactions submitted ~ 5m ago
-            submitted_5mago = RecentlySubmittedTxDf('5mago', 8, 49, 750000, alltx.df, txpool.txpool_block) 
+            submitted_5mago = RecentlySubmittedTxDf('5mago', alltx.process_block, 8, 49, 2000000, alltx.df, txpool.txpool_block) 
             #stats for transactions submitted ~ 30m ago
-            submitted_30mago = RecentlySubmittedTxDf('30mago', 50, 120, 750000, alltx.df, txpool.txpool_block) 
+            submitted_30mago = RecentlySubmittedTxDf('30mago', alltx.process_block, 50, 120, 2000000, alltx.df, txpool.txpool_block) 
             #stats for tx in txpool
-            txpool.make_txpool_block(alltx.process_block, alltx.alltx_df) 
+            txpool.make_txpool_block(alltx.process_block, alltx.df) 
             #make a prediction table by gas price
-            predictiontable = PredictionTable(blockdata, alltx, txpool, submitted5mago, submitted_30mago) 
+            predictiontable = PredictionTable(blockdata, alltx, txpool, submitted_5mago.df, submitted_30mago.df) 
             #make the gas price report
-            gaspricereport = GasPriceReport(predictiontable, blockdata, submitted_5mago, submitted_30mago, array5m, array30m) 
+            gaspricereport = GasPriceReport(predictiontable.predictiondf, blockdata, submitted_5mago, submitted_30mago, array5m, array30m, alltx.process_block) 
             #hold recent avg gp rec
             array5m = gaspricereport.array5m 
             #hold recent safelow gp rec
             array30m = gaspricereport.array30m 
             #updates tx submitted at current block with data from predictiontable, gpreport- this is for storing in mysql for later optional stats models.
-            alltx.update_txblock(txpool.txpool_block, blockdata, predictiontable, gaspricereport.gprecs)
-            #update block counter 
+            alltx.update_txblock(txpool.txpool_block, blockdata, predictiontable, gaspricereport.gprecs) 
+        
+            #make report if enabled
+            if report_option is True:
+                if ((alltx.process_block % 50) == 0):
+                    report = SummaryReport(alltx, blockdata)
+                    console.info("Writing summary reports for web...")
+                    report.write_report()
+
+            #make json for frontend
+            gaspricereport.write_to_json()
+            predictiontable.write_to_json()
+
+            #keep dataframes/mysql from getting too large
+            if ((alltx.process_block % 50) == 0):
+                blockdata.prune(alltx.process_block)
+                alltx.prune()
+                txpool.prune(alltx.process_block) 
+            
+            #update counter
             alltx.process_block += 1
 
-        except:
+
+        except KeyboardInterrupt:
+            #write to mysql
+            response = input ("save transactions to mysql (y/n)?")
+            if (response.lower() == 'y'):
+                alltx.write_to_sql()
+                blockdata.write_to_sql()
+                sys.exit()
+            else:
+                sys.exit()
+
+        except Exception:
             console.error(traceback.format_exc())
+            alltx.process_block +=1
 
 
     

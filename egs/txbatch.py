@@ -56,6 +56,36 @@ class TxBatch(object):
             req_results[key] = value
 
         return req_results
+    
+    def nonceBatch(self, method, hex_list, block):
+        if len(hex_list) == 0:
+            # there's no reason to go make a request for an
+            # empty batch.
+            return {}
+
+        req_list = []
+        idx = 0
+        block = hex(block)
+        for from_add in hex_list:
+            req = {
+                'jsonrpc':'2.0',
+                'method':method,
+                'params':[from_add, block],
+                'id':idx
+            }
+            req_list.append(req)
+            idx += 1
+        results = self._postBatch(req_list)
+        if results is False:
+            console.warn("Transaction batch request failed")
+            return {}
+        
+        req_results = {}
+        for result in results:
+            key = hex_list[int(result['id'])]
+            value = int(result['result'], 16)
+            req_results[key] = value
+        return req_results
 
     def _postBatch(self, post_data_object):
         """Make a batch JSON-RPC request to the geth endpoint."""
@@ -86,16 +116,20 @@ class TxBatch(object):
     def _formatTransactionResult(self, result):
         """Get proper types from returned hex."""
         if isinstance(result, dict):
-            print(result)
             for key, value in result.items():
-                if isinstance(value, str):
-                    strlen = len(value)
-                    if strlen == 66:
-                        result[key] = HexBytes(value)
-                    elif strlen >= 3 and value[0:2] == '0x':
-                        result[key] = int(value, 16)
-        print(result)
-        quit()
+                if key == 'blockHash':
+                    pass
+                elif key == 'hash':
+                    pass
+                elif key == 'to':
+                    pass
+                elif key == 'from':
+                    pass
+                else:
+                    if isinstance(value, str):
+                        strlen = len(value)
+                        if strlen >= 3 and value[0:2] == '0x':
+                            result[key] = int(value, 16)
         return result
 
 class TxBatchError(Exception):

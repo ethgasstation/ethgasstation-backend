@@ -14,10 +14,12 @@ import random
 import string
 from hexbytes import HexBytes
 from sqlalchemy import create_engine, Column, Integer, String, Float, DECIMAL, BigInteger, text
+from sqlalchemy import exc
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
 from .output import Output, OutputException
 from .txbatch import TxBatch
+from .modelparams.constants import *
 from .jsonexporter import JSONExporter, JSONExporterException
 from .report_generator import SummaryReport
 from .txbatch import TxBatch
@@ -33,9 +35,9 @@ web3 = egs.settings.get_web3_provider()
 console = Output()
 
 
-class Mined_Sql(Base):
-    """mysql schema for minedtransaction"""
-    __tablename__ = 'minedtx2'
+class Tx_Sql(Base):
+    """mysql schema for transactions"""
+    __tablename__ = 'alltx'
     id = Column(Integer, primary_key=True)
     index = Column(String(75))
     block_mined = Column(Integer)
@@ -43,12 +45,13 @@ class Mined_Sql(Base):
     expectedTime = Column(Float)
     expectedWait = Column(Float)
     mined_probability = Column(DECIMAL(5, 3))
-    highgas2 = Column(Integer)
     from_address = Column(String(60))
     gas_offered = Column(Integer)
     gas_price = Column(BigInteger)
     gp10th = Column(DECIMAL(5,2))
     s5mago = Column(Integer)
+    s30mago = Column(Integer)
+    highgas2 = Column(Integer)
     hashpower_accepting = Column(Integer)
     hashpower_accepting2 = Column(Integer)
     hgXhpa = Column(Integer)
@@ -67,53 +70,15 @@ class Mined_Sql(Base):
     tx_atabove = Column(Integer)
     tx_unchained = Column(Integer)
     wait_blocks = Column(Integer)
-    chained = Column(Integer)
     nonce = Column(Integer)
+    account_nonce = Column(Integer)
+    chained = Column(Integer)
     average_calc = Column(Integer)
     average_txpool = Column(Integer)
     safelow_calc = Column(Integer)
     safelow_txpool = Column(Integer)
 
-class Tx_Sql(Base):
-    """mysql schema for posted transaction"""
-    __tablename__ = 'postedtx2'
-    id = Column(Integer, primary_key=True)
-    index = Column(String(75))
-    block_mined = Column(Integer)
-    block_posted = Column(Integer)
-    expectedTime = Column(Float)
-    expectedWait = Column(Float)
-    mined_probability = Column(DECIMAL(5, 3))
-    from_address = Column(String(60))
-    gas_offered = Column(Integer)
-    gas_price = Column(BigInteger)
-    gp10th = Column(DECIMAL(5,2))
-    s5mago = Column(Integer)
-    highgas2 = Column(Integer)
-    hashpower_accepting = Column(Integer)
-    hashpower_accepting2 = Column(Integer)
-    hgXhpa = Column(Integer)
-    miner = Column(String(60))
-    num_from = Column(Integer)
-    num_to = Column(Integer)
-    ico = Column(Integer)
-    dump = Column(Integer)
-    high_gas_offered = Column(Integer)
-    pct_limit = Column(DECIMAL(5, 4))
-    removed_block = Column(Integer)
-    round_gp_10gwei = Column(Integer)
-    time_posted = Column(Integer)
-    time_mined = Column(Integer)
-    to_address = Column(String(60))
-    tx_atabove = Column(Integer)
-    tx_unchained = Column(Integer)
-    wait_blocks = Column(Integer)
-    nonce = Column(Integer)
-    chained = Column(Integer)
-    average_calc = Column(Integer)
-    average_txpool = Column(Integer)
-    safelow_calc = Column(Integer)
-    safelow_txpool = Column(Integer)
+
 
 class Block_Data(Base):
     """mysql schema for block database"""
@@ -139,34 +104,6 @@ Base.metadata.create_all(engine)
 Session = sessionmaker(bind=engine)
 session = Session()
 
-class Timers():
-    """
-    class to keep track of time relative to network block
-    also tracks low mined price from reports
-    """
-    def __init__(self, start_block):
-        self.start_block = start_block
-        self.current_block = start_block
-        self.process_block = start_block
-        self.minlow = 1 #.1 gwei
-        self.gp_avg_store = np.array([])
-        self.gp_safelow_store = np.array([])
-
-    def update_time(self, block):
-        self.current_block = block
-        self.process_block = self.process_block + 1
-
-    def check_reportblock(self, block):
-        if (block - (self.start_block-1))%50 == 0:
-            print (str(block) + ' ' + str(self.start_block))
-            return True
-        return False
-    
-    def add_block(self, block_number, block_time):
-        self.block_store[block_number] = block_time
-    
-    def read_block_time(self, block_number):
-        return self.block_store.pop(block_number, None)
 
 class CleanTx():
     """transaction object / methods for pandas"""
@@ -174,7 +111,7 @@ class CleanTx():
     from_address = None
 
     def __init__(self, tx_obj, block_posted=None, time_posted=None, miner=None):
-        self.hash = tx_obj.hash.hex()
+        self.hash = tx_obj.hash
         self.block_posted = block_posted
         self.block_mined = tx_obj.blockNumber
         if 'to' in tx_obj and isinstance(tx_obj['to'], str):
@@ -184,7 +121,8 @@ class CleanTx():
         self.time_posted = time_posted
         self.gas_price = tx_obj['gasPrice']
         self.gas_offered = tx_obj['gas']
-        self.round_gp_10gwei()
+        self.round_gp_10gwei = None
+        self.round_gp()
         if isinstance(miner, str):
             self.miner = miner.lower()
         else:
@@ -192,10 +130,11 @@ class CleanTx():
         self.nonce = tx_obj['nonce']
 
     def to_dataframe(self):
-        data = {self.hash: {'block_posted':self.block_posted, 'block_mined':self.block_mined, 'to_address':self.to_address, 'from_address':self.from_address, 'nonce':self.nonce, 'time_posted':self.time_posted, 'time_mined': None, 'gas_price':self.gas_price, 'miner':self.miner, 'gas_offered':self.gas_offered, 'round_gp_10gwei':self.gp_10gwei}}
-        return pd.DataFrame.from_dict(data, orient='index')
+        data = {self.hash: {'block_posted':self.block_posted, 'block_mined':self.block_mined, 'to_address':self.to_address, 'from_address':self.from_address, 'nonce':self.nonce, 'time_posted':self.time_posted, 'time_mined': None, 'gas_price':self.gas_price, 'miner':self.miner, 'gas_offered':self.gas_offered, 'round_gp_10gwei':self.round_gp_10gwei}}
+        df = pd.DataFrame.from_dict(data, orient='index')
+        return df
 
-    def round_gp_10gwei(self):
+    def round_gp(self):
         """Rounds the gas price to gwei"""
         gp = self.gas_price/1e8
         if gp >= 1 and gp < 10:
@@ -206,7 +145,7 @@ class CleanTx():
             gp = gp*10
         else:
             gp = 0
-        self.gp_10gwei = gp
+        self.round_gp_10gwei = gp
 
 class CleanBlock():
     """block object/methods for pandas"""
@@ -231,6 +170,21 @@ class CleanBlock():
         data = {0:{'block_number':self.block_number, 'gasused':self.gasused, 'miner':self.miner, 'gaslimit':self.gaslimit, 'numtx':self.numtx, 'blockhash':self.blockhash, 'time_mined':self.time_mined, 'mingasprice':self.mingasprice, 'uncsreported':self.uncsreported, 'blockfee':self.blockfee, 'main':self.main, 'uncle':self.uncle, 'speed':self.speed, 'includedblock':self.includedblock}}
         return pd.DataFrame.from_dict(data, orient='index')
 
+def predict(row):
+    """predicts block wait time according to model coefs from model params"""
+    if row['chained'] == 1:
+        return np.nan
+    try:
+        sum1 = (INTERCEPT + (row['hashpower_accepting'] * HPA_COEF))
+        prediction = np.exp(sum1)
+        if prediction < 2:
+            prediction = 2
+        if row['gas_offered'] > 2000000:
+            prediction = prediction + 100
+        return np.round(prediction, decimals=2)
+    except Exception as e:
+        console.error("predict: Exception caught: " + str(e))
+        return np.nan
 
 class TxpoolContainer ():
     """Handles txpool dataframe and analysis methods"""
@@ -252,41 +206,30 @@ class TxpoolContainer ():
                     hashlist.append(tx_obj['hash'])
             txpool_current = pd.DataFrame(index = hashlist)
             txpool_current['block'] = current_block
-            self.txpool_df = self.txpool_df.append(txpool_current, ignore_index = False)
-            console.info("done. length = " +str(len(self.txpool_df)))
+            console.info("done. length = " +str(len(txpool_current)))
+            self.txpool_df = self.txpool_df.append(txpool_current, ignore_index = False)   
         except Exception as e:
             console.warn(e)
             console.warn("txpool empty")
     
     def make_txpool_block(self, block, alltx):
-        """gets txhash from all transactions in txpool at block and merges the data from alltx and then flags tx with lowest nonces"""
-        
-        def check_nonce(row):
-            if row['num_from']>1:
-                if row['nonce'] > txpool_by_nonce.loc[row['from_address'],'nonce']:
-                    return 1
-                if row['nonce'] == txpool_by_nonce.loc[row['from_address'], 'nonce']:
-                    return 0
-            else:
-                return 0
+        """gets txhash from all transactions in txpool at block and merges the data from alltx"""
 
         #get txpool hashes at block
-        txpool_block = self.txpool_df.loc[txpool['block']==block]
+        txpool_block = self.txpool_df.loc[self.txpool_df['block']==block]
         if not txpool_block.empty:
             txpool_block = txpool_block.drop(['block'], axis=1)
             #merge transaction data for txpool transactions
             #txpool_block only has transactions received by filter
             txpool_block = txpool_block.join(alltx, how='inner')
             txpool_block = txpool_block.append(alltx.loc[alltx['block_posted']==block])
+            txpool_block = txpool_block.drop_duplicates(keep='first')
             console.info('txpool block length ' + str(len(txpool_block)))
         else:
             txpool_block = alltx.loc[alltx['block_posted']==block].copy()
+            console.info('txpool block length ' + str(len(txpool_block)))
         
         if not txpool_block.empty:
-            txpool_by_nonce = txpool_block[['from_address', 'nonce']].groupby('from_address').agg({'nonce':'min'})
-            txpool_block['num_from'] = txpool_block.groupby('from_address')['block_posted'].transform('count')
-            #when multiple tx from same from address, finds tx with lowest nonce (unchained) - others are 'chained'
-            txpool_block['chained'] = txpool_block.apply(check_nonce,axis=1)
             self.txpool_block = txpool_block
             #create new df with txpool grouped by gp 
             self.txpool_by_gp = txpool_block[['gas_price', 'round_gp_10gwei']].groupby('round_gp_10gwei').agg({'gas_price':'count'})
@@ -295,12 +238,16 @@ class TxpoolContainer ():
             self.txpool_block = pd.DataFrame()
             self.txpool_by_gp = pd.DataFrame()
             console.warn("txpool block empty")
+    
+    def prune(self, block):
+        self.txpool_df = self.txpool_df.loc[self.txpool_df['block'] > (block-10)]
         
         
 class BlockDataContainer():
     """Handles block-level dataframe and its processing"""
     def __init__(self):
         self.blockdata_df = pd.DataFrame()
+        self.block_sumdf = pd.DataFrame()
         self.hashpower = pd.DataFrame()
         self.block_time = None
         self.gaslimit = None
@@ -309,8 +256,7 @@ class BlockDataContainer():
     
     def init_df(self):
         try:
-            blockdata = pd.read_sql('SELECT * from blockdata2 order by id desc limit 2000', con=engine)
-            self.df = blockdata.drop('id', axis=1)
+            self.blockdata_df= pd.read_sql('SELECT * from blockdata2 order by block_number desc limit 2000', con=engine)
         except Exception as e:
             console.warn(e)
 
@@ -328,11 +274,12 @@ class BlockDataContainer():
         block_numtx = len(block_obj.transactions)
         timemined = block_transactions_df['time_mined'].min()
         clean_block = CleanBlock(block_obj, 1, 0, timemined, block_mingasprice, block_numtx, block_weightedfee).to_dataframe()
-        self.df = blockdata.append(clean_block, ignore_index = True)
+        self.block_sumdf = clean_block
+        self.blockdata_df = self.blockdata_df.append(clean_block, ignore_index = True)
 
     def analyze_last200blocks(self, block):
         """analyzes % of last 200 blocks by min mined gas price, summary stats """
-        blockdata = self.df
+        blockdata = self.blockdata_df
         recent_blocks = blockdata.loc[blockdata['block_number'] > (block - 200), ['mingasprice', 'block_number', 'gaslimit', 'time_mined', 'speed']]
         gaslimit = recent_blocks['gaslimit'].mean()
         last10 = recent_blocks.sort_values('block_number', ascending=False).head(n=10)
@@ -355,6 +302,16 @@ class BlockDataContainer():
         self.gaslimit = gaslimit
         self.speed = speed
         
+    def write_to_sql(self):
+        """write data to mysql for analysis"""
+        self.blockdata_df.to_sql(con=engine, name='blockdata2', if_exists='replace', index=False)
+
+    def prune(self, block):
+        """keep dataframes and databases from getting too big"""
+        console.info('pruning blockdata')
+        deleteBlock = block-5000
+        self.blockdata_df = self.blockdata_df.loc[self.blockdata_df['block_number'] > deleteBlock]
+
 class AllTxContainer():
     """Handles transaction dataframe and analysis"""
     def __init__(self):
@@ -372,23 +329,21 @@ class AllTxContainer():
     def load_txdata(self):
         """load data from mysql into dataframes"""
         try:
-            postedtx = pd.read_sql('SELECT * from postedtx2 order by id desc limit 100000', con=engine)
-            minedtx = pd.read_sql('SELECT * from minedtx2 order by id desc limit 100000', con=engine)
-            minedtx.set_index('index', drop=True, inplace=True)
-            alltx = pd.read_sql('SELECT * from minedtx2 order by id desc limit 100000', con=engine)
+            alltx = pd.read_sql('SELECT * from alltx order by block_posted desc limit 100000', con=engine)
             alltx.set_index('index', drop=True, inplace=True)
-            alltx = postedtx[['index', 'expectedTime', 'expectedWait', 'highgas2', 'from_address', 'gas_offered', 'gas_price', 'hashpower_accepting', 'num_from', 'num_to', 'ico', 'dump', 'high_gas_offered', 'pct_limit', 'round_gp_10gwei', 'time_posted', 'block_posted', 'to_address', 'tx_atabove', 'wait_blocks', 'chained', 'nonce']].join(minedtx[['block_mined', 'miner', 'time_mined', 'removed_block']], on='index', how='left')
-            alltx.set_index('index', drop=True, inplace=True)
-            self.df = alltx
-        except Exception as e:
+            if 'level_0' in alltx.columns:
+                self.df = alltx.drop('level_0', axis=1)
+            else:
+                self.df = alltx
+        except exc.SQLAlchemyError as e:
             console.warn(e)
 
-    
 
     def listen(self):
         """listens for new pending tx and adds them to the alltx dataframe"""
         #Set number of transactions to sample to keep from falling behind; can be adjusted
         current_block = web3.eth.blockNumber
+        console.info ("listening for new transactions at block "+ str(current_block)+"...." )
         self.new_tx_list = []
         try:
             while True:
@@ -411,8 +366,7 @@ class AllTxContainer():
                 if self.process_block < current_block:
                     console.info('now processing block ' + str(self.process_block))
                     #get unique txids
-                    self.new_tx_list = list(set(self.new_tx_list))
-                    console.info('submitted tx during block: ' + str(len(self.new_tx_list)))
+                    self.new_tx_list = set(self.new_tx_list)
                     return
                 else:
                     time.sleep(0.5)
@@ -425,11 +379,7 @@ class AllTxContainer():
         tx_failed = 0
         submitted_block = pd.DataFrame()
         tx_hashes = []
-        
-        '''don't break the pipe'''
-        if len(self.new_tx_list) > 500:
-            self.new_tx_list = random.sample(self.new_tx_list, 500)
-        
+
         '''need to loop through hexbytes list and convert to hexstrings'''
         for txHash in self.new_tx_list:
             if isinstance(txHash, HexBytes):
@@ -438,7 +388,17 @@ class AllTxContainer():
                 tx_hashes.append(txHash.lower())
             else:
                 raise TypeError("TxBatch.addTxHash: txHash is not a string or HexBytes")
-            
+
+        '''dont add duplicate transactions'''
+        tx_hashes = set(tx_hashes)
+        existing = self.df.index.tolist()
+        tx_hashes = list(tx_hashes.difference(existing))
+        console.info("submitted tx: " + str(len(tx_hashes)))
+
+        '''don't break the pipe'''
+        if len(tx_hashes) > 500:
+            tx_hashes = random.sample(tx_hashes, 500)
+        
         '''get the transaction objects'''
         if len(tx_hashes):
             txs = TxBatch(web3)
@@ -446,8 +406,6 @@ class AllTxContainer():
                 results = txs.batchRequest('eth_getTransactionByHash', tx_hashes)
                 for txhash, txobject in results.items():
                     if txobject is not None:
-                        print (txobject)
-                        quit()
                         clean_tx = CleanTx(txobject, self.process_block, None)
                         submitted_block = submitted_block.append(clean_tx.to_dataframe(), ignore_index = False)
                         tx_retrieved += 1
@@ -456,29 +414,29 @@ class AllTxContainer():
             except Exception as e:
                 raise e
                 console.error("Batch transaction failed.")
-
-        print (submitted_block)
-        xxxx
+       
         '''get the account nonces'''
         if len(submitted_block):
-            txbatchrequest = TxBatch(web3)
-            txbatchrequest.processSendingAddress(submitted_block)
-
+            from_addresses = list(set(submitted_block['from_address'].tolist()))
+            nonces = TxBatch(web3)
+            results = nonces.nonceBatch('eth_getTransactionCount', from_addresses, self.process_block)
+            submitted_block['account_nonce'] = submitted_block['from_address'].apply(lambda x: results[x] if x in results else np.nan)
+            submitted_block['chained'] = (submitted_block['nonce'] > submitted_block['account_nonce']).astype(int)
         
-        if tx_failed > 0:
-            console.debug("Failed to get tx data for %d of %d transactions in new_tx_list." % (tx_failed, (tx_retrieved + tx_failed)))
-        console.info('added ' +str(len(self.new_tx_list)) + 'txs to alltx database')
+        console.info("added tx: " + str(tx_retrieved))
+        self.df = self.df.append(submitted_block)
                 
     
     
     def process_mined_transactions(self):
         """get all mined transactions at block and update alltx df"""
         block_df = pd.DataFrame()
-        block_obj = web3.eth.getBlock(self.process_block, True)
         mined_block_num = self.process_block - 3
+        block_obj = web3.eth.getBlock(mined_block_num, True)
         miner = block_obj.miner
         for transaction in block_obj.transactions:
-            clean_tx = CleanTx(transaction, None, None, miner, mined_block_num)
+            clean_tx = CleanTx(transaction, None, None, miner)
+            clean_tx.hash = clean_tx.hash.hex()
             block_df = block_df.append(clean_tx.to_dataframe(), ignore_index = False)
         block_df['time_mined'] = block_obj.timestamp
 
@@ -487,7 +445,7 @@ class AllTxContainer():
         console.info('num mined in ' + str(mined_block_num)+ ' = ' + str(len(block_df)))
         console.info('num seen in ' + str(mined_block_num)+ ' = ' + str(len(mined_blockdf_seen)))
         #update transactions with mined data
-        self.alltx = self.alltx.combine_first(block_df)
+        self.df = self.df.combine_first(block_df)
         self.block_obj = block_obj
         self.minedblock_tx_df = block_df
     
@@ -527,21 +485,34 @@ class AllTxContainer():
             txpool_block['tx_atabove'] = txpool_block['round_gp_10gwei'].apply(lambda x: txatabove_lookup[x] if x in txatabove_lookup else 1)
         if recent_lookup is not None:
             txpool_block['s5mago'] = txpool_block['round_gp_10gwei'].apply(lambda x: recent_lookup[x] if x in recent_lookup else 0)
-        if recent_lookup is not None:
+        if remote_lookup is not None:
             txpool_block['s30mago'] = txpool_block['round_gp_10gwei'].apply(lambda x: remote_lookup[x] if x in remote_lookup else 0)
         txpool_block['expectedWait'] = txpool_block.apply(predict, axis=1)
-        txpool_block['expectedTime'] = txpool_block['expectedWait'].apply(lambda x: np.round((x * avg_timemined / 60), decimals=2))
+        txpool_block['expectedTime'] = txpool_block['expectedWait'].apply(lambda x: np.round((x * blockdata.block_time / 60), decimals=2))
         txpool_block['safelow_calc'] = gprecs['safelow_calc']
         txpool_block['safelow_txpool'] = gprecs['safelow_txpool']
         txpool_block['average_calc'] = gprecs['average_calc']
         txpool_block['average_txpool'] = gprecs['average_txpool']
+        console.info("updating " + str(len(txpool_block)) + " transactions")
         self.df = self.df.combine_first(txpool_block)
+        
 
+    def write_to_sql(self):
+        self.df.reset_index(inplace=True)
+        self.df.to_sql(con=engine, name='alltx', if_exists='replace')
+    
+    def prune(self):
+        """keep dataframes and databases from getting too big"""
+        deleteBlock_mined = self.process_block - 1700
+        deleteBlock_posted = self.process_block - 5500
+        self.df = self.df.loc[(self.df['block_posted'] > deleteBlock_posted) | (self.df['block_mined'] > deleteBlock_mined)]
+    
 
 class RecentlySubmittedTxDf():
     """Df for holding recently submitted tx to track clearing from txpool"""
-    def __init__(self, name, start_block, end_block, max_gas, alltx, current_txpool):
+    def __init__(self, name, current_block, start_block, end_block, max_gas, alltx, current_txpool):
         self.df = pd.DataFrame()
+        self.current_block = current_block
         self.name = name
         self.total_tx = None
         self.start_block = start_block
@@ -556,7 +527,8 @@ class RecentlySubmittedTxDf():
         current_txpool = self.current_txpool
 
         #get tx matching selection criteria: block submitted, eligible nonce, exclude very high gas offered
-        recentdf = alltx.loc[(alltx['block_posted'] < (block-self.end_block)) & (alltx['block_posted'] > (block-self.start_block)) & (alltx['chained']==0) & (alltx['gas_offered'] < self.max_gas)].copy()
+
+        recentdf = alltx.loc[(alltx['block_posted'] > (self.current_block - self.end_block)) & (alltx['block_posted'] < (self.current_block - self.start_block)) & (alltx['chained']==0) & (alltx['gas_offered'] < self.max_gas)].copy()
         self.total_tx = len(recentdf)
 
         def roundresult(row):
@@ -565,20 +537,22 @@ class RecentlySubmittedTxDf():
             else:
                 x = row[0] / row[1] * 100
                 return np.round(x)
-
         if (len(recentdf) > 50) & (len(current_txpool) > 100): #only useful if both have sufficient transactions for analysis; otherwise set to empty
             recentdf['still_here'] = recentdf.index.isin(current_txpool.index).astype(int)
             recentdf['mined'] = recentdf.index.isin(alltx.index[alltx['block_mined'].notnull()]).astype(int)
+            recentdf['round_gp_10gwei'] = recentdf['round_gp_10gwei'].astype(int)
             recentdf = recentdf[['gas_price', 'round_gp_10gwei', 'still_here', 'mined']].groupby('round_gp_10gwei').agg({'gas_price':'count', 'still_here':'sum', 'mined':'sum'})
             recentdf.rename(columns={'gas_price':'total'}, inplace=True)
             recentdf['pct_unmined'] = recentdf[['still_here', 'total']].apply(roundresult, axis=1)
             recentdf['pct_mined'] = recentdf[['mined', 'total']].apply(roundresult, axis=1)
+            self.print_length()
             self.df = recentdf
         else:
+            self.print_length()
             self.df = pd.DataFrame()
     
     def print_length(self):
-            console.info("# of tx submitted ~ " + str(self.name) + " = " + str(len(self.total_tx)))
+            console.info("# of tx submitted ~ " + str(self.name) + " = " + str(self.total_tx))
 
 
 class PredictionTable():
@@ -600,7 +574,7 @@ class PredictionTable():
         """makes prediction table for number of blocks to confirmation"""
         hashpower = self.blockdata.hashpower
         hpower = self.alltx.pctmined_gp_last100
-        avg_timemined = self.blockdata.avg_timemined
+        avg_timemined = self.blockdata.block_time
         txpool_by_gp = self.txpool.txpool_by_gp
         submitted_5mago = self.recentdf
         submitted_30mago = self.remotedf
@@ -617,7 +591,7 @@ class PredictionTable():
         def get_recent_value(gasprice, submitted_recent, col):
             """gets values from recenttx df for prediction table"""
             if gasprice in submitted_recent.index:
-                rval = submitted_recent.get_value(gasprice, col)
+                rval = submitted_recent.at[gasprice, col]
             else:
                 rval = 0
             return rval
@@ -629,9 +603,9 @@ class PredictionTable():
             submitted_recent.loc[(submitted_recent['still_here'] >= 1) & (submitted_recent['still_here'] <= 2) & (submitted_recent['total'] < 4), 'pct_unmined'] = np.nan
             maxval = submitted_recent.loc[submitted_recent.index > gasprice, 'pct_unmined'].max()
             if gasprice in submitted_recent.index:
-                stillh = submitted_recent.get_value(gasprice, 'still_here')
+                stillh = submitted_recent.at[gasprice, 'still_here']
                 if stillh > 2:
-                    rval =  submitted_recent.get_value(gasprice, 'pct_unmined')
+                    rval =  submitted_recent.at[gasprice, 'pct_unmined']
                 else:
                     rval = maxval
             else:
@@ -653,21 +627,6 @@ class PredictionTable():
                 hpa = hpa.max()
             return int(hpa)
 
-        def predict(row):
-            if row['chained'] == 1:
-                return np.nan
-            #set in modelparams
-            try:
-                sum1 = (INTERCEPT + (row['hashpower_accepting'] * HPA_COEF))
-                prediction = np.exp(sum1)
-                if prediction < 2:
-                    prediction = 2
-                if row['gas_offered'] > 2000000:
-                    prediction = prediction + 100
-                return np.round(prediction, decimals=2)
-            except Exception as e:
-                console.error("predict: Exception caught: " + str(e))
-                return np.nan
 
         predictTable = pd.DataFrame({'gasprice' :  range(10, 1010, 10)})
         ptable2 = pd.DataFrame({'gasprice' : range(0, 10, 1)})
@@ -713,10 +672,20 @@ class PredictionTable():
         self.recent_lookup = s5mago_lookup
         self.remote_lookup = s1hago_lookup
 
+    def write_to_json(self):
+        """write json data"""
+        global exporter
+        try:
+            if not self.predictiondf.empty:
+                self.predictiondf['gasprice'] = self.predictiondf['gasprice']/10
+                prediction_tableout = self.predictiondf.to_json(orient='records')
+                exporter.write_json('predictTable', prediction_tableout)
+        except Exception as e:
+            console.error("write_to_json: Exception caught: " + str(e))
 
 
 class GasPriceReport():
-    def __init__(self, predictiontable, blockdata, submitted_recent, submmited_remote, array5m, array30m):
+    def __init__(self, predictiontable, blockdata, submitted_recent, submmited_remote, array5m, array30m, block):
         self.predictiontable = predictiontable
         self.blockdata = blockdata
         self.submitted_recent = submitted_recent
@@ -725,7 +694,9 @@ class GasPriceReport():
         self.array5m = array5m
         self.array30m = array30m
         self.gprecs = None
+        self.minlow = 0.1
         self.make_gasprice_report()
+        
       
     def make_gasprice_report(self):
         """processes block data and makes the gas price recommendations"""
@@ -736,6 +707,8 @@ class GasPriceReport():
         array30m = self.array30m
         submitted_5mago = self.submitted_recent
         submitted_30mago = self.submitted_remote
+        minlow = self.minlow
+        block = self.block
         
 
         def gp_from_txpool(timeframe, calc):
@@ -899,4 +872,11 @@ class GasPriceReport():
         self.array30m = array30m
 
 
+    def write_to_json(self):
+        """write json data"""
+        global exporter
+        try:
+            exporter.write_json('ethgasAPI', self.gprecs)
+        except Exception as e:
+            console.error("write_to_json: Exception caught: " + str(e))
 

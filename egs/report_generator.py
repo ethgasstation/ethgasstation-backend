@@ -3,14 +3,19 @@ import numpy as np
 import json
 import urllib
 import time
+from .jsonexporter import JSONExporter, JSONExporterException
+import egs.settings
+egs.settings.load_settings()
+exporter = JSONExporter()
 
 
-class SummaryReport(object):
+class SummaryReport():
     """analyzes data from last x blocks to create summary stats"""
-    def __init__(self, tx_df, block_df, end_block):
-        self.end_block = end_block
-        self.tx_df = tx_df
-        self.block_df = block_df
+    def __init__(self, alltx, blockdata):
+        self.end_block = alltx.process_block
+        self.tx_df = alltx.df[alltx.df['block_mined'] > (alltx.process_block-1500)].copy()
+        self.block_df = blockdata.blockdata_df[blockdata.blockdata_df['block_number'] > (alltx.process_block-1500)].copy()
+        self.block_time = blockdata.block_time
         self.post = {}
 
         def get_minedgasprice(row):
@@ -29,7 +34,7 @@ class SummaryReport(object):
         self.block_df['emptyBlocks'] = (self.block_df['numtx']==0).astype(int)
         self.tx_df['mined'] = self.tx_df['block_mined'].notnull()
         self.tx_df['delay'] = self.tx_df['block_mined'] - self.tx_df['block_posted']
-        self.tx_df['delay2'] = self.tx_df['time_mined'] - self.tx_df['time_posted']
+        self.tx_df['delay2'] = self.tx_df['delay'] * self.block_time
         self.tx_df.loc[self.tx_df['delay'] <= 0, 'delay'] = np.nan
         self.tx_df.loc[self.tx_df['delay2'] <= 0, 'delay2'] = np.nan
         total_tx = len(self.tx_df.loc[self.tx_df['minedGasPrice'].notnull()])
@@ -95,7 +100,7 @@ class SummaryReport(object):
         miner_txdata = pd.concat([miner_txdata, avgprice_df], axis = 1)
 
         # Calculate Each Miners % Empty and Total Blocks
-        miner_blocks = block_df[['miner','emptyBlocks','block_number']].groupby('miner').agg({'emptyBlocks':'sum', 'block_number':'count'})
+        miner_blocks = self.block_df[['miner','emptyBlocks','block_number']].groupby('miner').agg({'emptyBlocks':'sum', 'block_number':'count'})
         miner_txdata = pd.concat([miner_txdata, miner_blocks], axis = 1)
         miner_txdata.reset_index(inplace=True)
         miner_txdata = miner_txdata.rename(columns={'index':'miner', 'block_number':'totBlocks'})
@@ -176,3 +181,22 @@ class SummaryReport(object):
         price_wait = price_wait.groupby('minedGasPrice').median()/60
         price_wait.reset_index(inplace=True)
         self.price_wait = price_wait
+
+    def write_report(self):
+        """write json data"""
+        global exporter
+        top_minersout = self.top_miners.to_json(orient='records')
+        minerout = self.miner_txdata.to_json(orient='records')
+        gasguzzout = self.gasguzz.to_json(orient='records')
+        lowpriceout = self.lowprice.to_json(orient='records')
+        price_waitout = self.price_wait.to_json(orient='records')
+
+        try:
+            exporter.write_json('txDataLast10k', self.post)
+            exporter.write_json('topMiners', top_minersout)
+            exporter.write_json('priceWait', price_waitout)
+            exporter.write_json('miners', minerout)
+            exporter.write_json('gasguzz', gasguzzout)
+            exporter.write_json('validated', lowpriceout)
+        except Exception as e:
+            console.error("write_report: Exception caught: " + str(e))
