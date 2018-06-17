@@ -253,6 +253,8 @@ class BlockDataContainer():
         
     def write_to_sql(self):
         """write data to mysql for analysis"""
+        self.blockdata_df = self.blockdata_df.sort_values(by=['block_number'], ascending=False)
+        self.blockdata_df = self.blockdata_df.head(1500)
         self.blockdata_df.to_sql(con=engine, name='blockdata2', if_exists='replace', index=False)
 
     def prune(self, block):
@@ -324,10 +326,31 @@ class AllTxContainer():
 
                 
     def process_submitted_block(self):
-        tx_retrieved = 0
-        tx_failed = 0
-        submitted_block = pd.DataFrame()
+        
         tx_hashes = []
+
+        def getbatch(tx_hashes):
+            """get tx objects and account nonces"""
+            submitted_block = pd.DataFrame()
+            txs = TxBatch(web3)
+            try: 
+                results = txs.batchRequest('eth_getTransactionByHash', tx_hashes)
+                for txhash, txobject in results.items():
+                    if txobject is not None:
+                        clean_tx = CleanTx(txobject, self.process_block, None)
+                        submitted_block = submitted_block.append(clean_tx.to_dataframe(), ignore_index = False)
+            except Exception as e:
+                raise e
+                console.error("Batch transaction failed.")
+            
+            if len(submitted_block):
+                from_addresses = list(set(submitted_block['from_address'].tolist()))
+                nonces = TxBatch(web3)
+                results = nonces.nonceBatch('eth_getTransactionCount', from_addresses, self.process_block)
+                submitted_block['account_nonce'] = submitted_block['from_address'].apply(lambda x: results[x] if x in results else np.nan)
+                submitted_block['chained'] = (submitted_block['nonce'] > submitted_block['account_nonce']).astype(int)
+                console.info("added tx: " + str(len(submitted_block)))
+                self.df = self.df.append(submitted_block)
 
         '''need to loop through hexbytes list and convert to hexstrings'''
         for txHash in self.new_tx_list:
@@ -346,34 +369,16 @@ class AllTxContainer():
 
         '''don't break the pipe'''
         if len(tx_hashes) > 500:
-            tx_hashes = random.sample(tx_hashes, 500)
-        
-        '''get the transaction objects'''
-        if len(tx_hashes):
-            txs = TxBatch(web3)
-            try: 
-                results = txs.batchRequest('eth_getTransactionByHash', tx_hashes)
-                for txhash, txobject in results.items():
-                    if txobject is not None:
-                        clean_tx = CleanTx(txobject, self.process_block, None)
-                        submitted_block = submitted_block.append(clean_tx.to_dataframe(), ignore_index = False)
-                        tx_retrieved += 1
-                    else:
-                        tx_failed += 1
-            except Exception as e:
-                raise e
-                console.error("Batch transaction failed.")
-       
-        '''get the account nonces'''
-        if len(submitted_block):
-            from_addresses = list(set(submitted_block['from_address'].tolist()))
-            nonces = TxBatch(web3)
-            results = nonces.nonceBatch('eth_getTransactionCount', from_addresses, self.process_block)
-            submitted_block['account_nonce'] = submitted_block['from_address'].apply(lambda x: results[x] if x in results else np.nan)
-            submitted_block['chained'] = (submitted_block['nonce'] > submitted_block['account_nonce']).astype(int)
-        
-        console.info("added tx: " + str(tx_retrieved))
-        self.df = self.df.append(submitted_block)
+            if len(tx_hashes) > 1000:
+                tx_hashes = random.sample(tx_hashes, 1000)
+            mid = int(len(tx_hashes)/2)
+            tx_hash_sub = [tx_hashes[0:mid-1], tx_hashes[mid:]]
+            for hash_list in tx_hash_sub:
+                getbatch(hash_list)
+
+        else:
+            getbatch(tx_hashes)
+    
                 
     
     
@@ -447,8 +452,27 @@ class AllTxContainer():
         
 
     def write_to_sql(self):
+        """writes to sql, prevent buffer overflow errors"""
         self.df.reset_index(inplace=True)
-        self.df.to_sql(con=engine, name='alltx', if_exists='replace')
+        length = len(self.df)
+        chunks = int(np.ceil(length/1000))
+        if length < 1000:
+            self.df.to_sql(con=engine, name='alltx', if_exists='replace')
+        else:
+            start = 0
+            stop = 999
+            for chunck in range(0,chunks):
+                tempdf = self.df[start:stop]
+                if chunck == 0: 
+                    tempdf.to_sql(con=engine, name='alltx', if_exists='replace')
+                else:
+                    tempdf.to_sql(con=engine, name='alltx', if_exists='append')
+                start += 1000
+                stop += 1000
+                if stop > length:
+                    stop = length-1
+        console.info("wrote " + str(length) + " transactions to alltx.")
+
     
     def prune(self):
         """keep dataframes and databases from getting too big"""
