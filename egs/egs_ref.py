@@ -256,6 +256,7 @@ class BlockDataContainer():
         self.blockdata_df = self.blockdata_df.sort_values(by=['block_number'], ascending=False)
         self.blockdata_df = self.blockdata_df.head(1500)
         self.blockdata_df.to_sql(con=engine, name='blockdata2', if_exists='replace', index=False)
+        console.info("wrote " + str(len(self.blockdata_df) + " blocks to mysql"))
 
     def prune(self, block):
         """keep dataframes and databases from getting too big"""
