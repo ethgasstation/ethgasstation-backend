@@ -13,10 +13,7 @@ import time
 import random
 import string
 from hexbytes import HexBytes
-from sqlalchemy import create_engine, Column, Integer, String, Float, DECIMAL, BigInteger, text
-from sqlalchemy import exc
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import create_engine, inspect
 from .output import Output, OutputException
 from .txbatch import TxBatch
 from .modelparams.constants import *
@@ -25,34 +22,11 @@ from .report_generator import SummaryReport
 from .txbatch import TxBatch
 import egs.settings
 egs.settings.load_settings()
-
-Base = declarative_base()
 connstr = egs.settings.get_mysql_connstr()
-
 exporter = JSONExporter()
 web3 = egs.settings.get_web3_provider()
-
 console = Output()
-
-
-class Tx_Sql(Base):
-    """mysql schema for transactions"""
-    __tablename__ = 'alltx'
-    id = Column(Integer, primary_key=True)
-    index = Column(String(75))
-    block_posted = Column(Integer)
-
-class Block_Data(Base):
-    """mysql schema for block database"""
-    __tablename__ = 'blockdata2'
-    id = Column(Integer, primary_key=True)
-    block_number = Column(Integer)
-
 engine = create_engine(connstr, echo=False)
-Base.metadata.create_all(engine)
-Session = sessionmaker(bind=engine)
-session = Session()
-
 
 class CleanTx():
     """transaction object / methods for pandas"""
@@ -204,10 +178,12 @@ class BlockDataContainer():
         self.init_df()
     
     def init_df(self):
-        try:
-            self.blockdata_df= pd.read_sql('SELECT * from blockdata2 order by block_number desc limit 2000', con=engine)
-        except Exception as e:
-            console.warn(e)
+        ins = inspect(engine)
+        if 'blockdata2' in ins.get_table_names():
+            try:
+                self.blockdata_df= pd.read_sql('SELECT * from blockdata2 order by block_number desc limit 2000', con=engine)
+            except Exception as e:
+                console.warn(e)
 
 
     def process_block_data (self, block_transactions_df, block_obj):
@@ -256,7 +232,7 @@ class BlockDataContainer():
         self.blockdata_df = self.blockdata_df.sort_values(by=['block_number'], ascending=False)
         self.blockdata_df = self.blockdata_df.head(1500)
         self.blockdata_df.to_sql(con=engine, name='blockdata2', if_exists='replace', index=False)
-        console.info("wrote " + str(len(self.blockdata_df) + " blocks to mysql"))
+        console.info("wrote " + str(len(self.blockdata_df)) + " blocks to mysql")
 
     def prune(self, block):
         """keep dataframes and databases from getting too big"""
@@ -281,13 +257,15 @@ class AllTxContainer():
     def load_txdata(self):
         """load data from mysql into dataframes"""
         try:
-            alltx = pd.read_sql('SELECT * from alltx order by block_posted desc limit 100000', con=engine)
-            alltx.set_index('index', drop=True, inplace=True)
-            if 'level_0' in alltx.columns:
-                self.df = alltx.drop('level_0', axis=1)
+            ins = inspect(engine)
+            if 'alltx' in ins.get_table_names():
+                alltx = pd.read_sql('SELECT * from alltx order by block_posted desc limit 100000', con=engine)
+                alltx.set_index('index', drop=True, inplace=True)
+                if 'level_0' in alltx.columns:
+                    self.df = alltx.drop('level_0', axis=1)
             else:
-                self.df = alltx
-        except exc.SQLAlchemyError as e:
+                return
+        except Exception as e:
             console.warn(e)
 
 
@@ -380,9 +358,6 @@ class AllTxContainer():
         else:
             getbatch(tx_hashes)
     
-                
-    
-    
     def process_mined_transactions(self):
         """get all mined transactions at block and update alltx df"""
         block_df = pd.DataFrame()
@@ -454,6 +429,7 @@ class AllTxContainer():
 
     def write_to_sql(self):
         """writes to sql, prevent buffer overflow errors"""
+        console.info("writing to mysql....")
         self.df.reset_index(inplace=True)
         length = len(self.df)
         chunks = int(np.ceil(length/1000))
