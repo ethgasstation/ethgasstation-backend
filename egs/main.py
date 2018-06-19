@@ -65,7 +65,7 @@ def master_control(args):
 
             #make json for frontend
             gaspricereport.write_to_json()
-            predictiontable.write_to_json()
+            predictiontable.write_to_json(txpool)
 
             #keep dataframes/mysql from getting too large
             if ((alltx.process_block % 50) == 0):

@@ -26,7 +26,8 @@ connstr = egs.settings.get_mysql_connstr()
 exporter = JSONExporter()
 web3 = egs.settings.get_web3_provider()
 console = Output()
-engine = create_engine(connstr, echo=False)
+engine = create_engine(connstr, echo=False, pool_recycle=3600)
+conn = engine.connect()
 
 class CleanTx():
     """transaction object / methods for pandas"""
@@ -429,7 +430,7 @@ class AllTxContainer():
 
     def write_to_sql(self):
         """writes to sql, prevent buffer overflow errors"""
-        console.info("writing to mysql....")
+        console.info("writing to mysql....this can take awhile")
         self.df.reset_index(inplace=True)
         length = len(self.df)
         chunks = int(np.ceil(length/1000))
@@ -453,8 +454,8 @@ class AllTxContainer():
     
     def prune(self):
         """keep dataframes and databases from getting too big"""
-        deleteBlock_mined = self.process_block - 1700
-        deleteBlock_posted = self.process_block - 5500
+        deleteBlock_mined = self.process_block - 1500
+        deleteBlock_posted = self.process_block - 4500
         self.df = self.df.loc[(self.df['block_posted'] > deleteBlock_posted) | (self.df['block_mined'] > deleteBlock_mined)]
     
 
@@ -487,7 +488,7 @@ class RecentlySubmittedTxDf():
             else:
                 x = row[0] / row[1] * 100
                 return np.round(x)
-        if (len(recentdf) > 50) & (len(current_txpool) > 100): #only useful if both have sufficient transactions for analysis; otherwise set to empty
+        if (len(recentdf) > 50) & (len(current_txpool) > 500): #only useful if both have sufficient transactions for analysis; otherwise set to empty
             recentdf['still_here'] = recentdf.index.isin(current_txpool.index).astype(int)
             recentdf['mined'] = recentdf.index.isin(alltx.index[alltx['block_mined'].notnull()]).astype(int)
             recentdf['round_gp_10gwei'] = recentdf['round_gp_10gwei'].astype(int)
@@ -622,11 +623,11 @@ class PredictionTable():
         self.recent_lookup = s5mago_lookup
         self.remote_lookup = s1hago_lookup
 
-    def write_to_json(self):
-        """write json data"""
+    def write_to_json(self, txpool):
+        """write json data unless txpool block empty"""
         global exporter
         try:
-            if not self.predictiondf.empty:
+            if not txpool.txpool_block.empty:
                 self.predictiondf['gasprice'] = self.predictiondf['gasprice']/10
                 prediction_tableout = self.predictiondf.to_json(orient='records')
                 exporter.write_json('predictTable', prediction_tableout)
@@ -655,8 +656,6 @@ class GasPriceReport():
         speed = self.blockdata.speed
         array5m = self.array5m
         array30m = self.array30m
-        submitted_5mago = self.submitted_recent
-        submitted_30mago = self.submitted_remote
         minlow = self.minlow
         block = self.block
         
@@ -670,8 +669,8 @@ class GasPriceReport():
         
             if label_df[0] in prediction_table.columns:
                 try:
-                    #pct_unmined <10%, must have 1% mined (as opposed to dropped), and must have seen at least 5 transactions at the gas price
-                    series = prediction_table.loc[(prediction_table[label_df[0]] < 10) & (prediction_table[label_df[1]] > 1) & (prediction_table[label_df[2]] >= 5), 'gasprice']
+                    #pct_unmined <10%, must have 1% mined (as opposed to dropped), and must have seen at least 2 transactions at the gas price
+                    series = prediction_table.loc[(prediction_table[label_df[0]] < 10) & (prediction_table[label_df[1]] > 1) & (prediction_table[label_df[2]] >= 2), 'gasprice']
                     txpool = series.min()
                     console.info("calc value: " + str(calc))
                     console.info("txpool value: " + str(txpool))
