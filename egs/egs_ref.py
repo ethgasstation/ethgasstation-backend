@@ -224,7 +224,6 @@ class BlockDataContainer():
         if np.isnan(avg_timemined):
             avg_timemined = 15
         self.hashpower = hashpower
-        print (hashpower)
         self.block_time = avg_timemined
         self.gaslimit = gaslimit
         self.speed = speed
