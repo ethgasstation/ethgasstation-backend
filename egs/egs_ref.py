@@ -116,6 +116,7 @@ class TxpoolContainer ():
         self.txpool_df = pd.DataFrame() # aggregate list of txhashes in txp
         self.txpool_block = pd.DataFrame() # txp data at block
         self.txpool_by_gp = pd.DataFrame() # txp data grouped by gp
+        self.got_txpool = False
     
     def append_current_txp(self):
         """gets list of all txhash in txpool at block and appends to dataframe"""
@@ -149,9 +150,11 @@ class TxpoolContainer ():
             txpool_block = txpool_block.append(alltx.loc[alltx['block_posted']==block])
             txpool_block = txpool_block.drop_duplicates(keep='first')
             console.info('txpool block length ' + str(len(txpool_block)))
+            self.got_txpool = True
         else:
             txpool_block = alltx.loc[alltx['block_posted']==block].copy()
-            console.info('txpool block length ' + str(len(txpool_block)))
+            self.got_txpool = False
+            console.info('txpool skipped')
         
         if not txpool_block.empty:
             self.txpool_block = txpool_block
@@ -462,7 +465,7 @@ class AllTxContainer():
 
 class RecentlySubmittedTxDf():
     """Df for holding recently submitted tx to track clearing from txpool"""
-    def __init__(self, name, current_block, start_block, end_block, max_gas, alltx, current_txpool):
+    def __init__(self, name, current_block, start_block, end_block, max_gas, alltx, txpool):
         self.df = pd.DataFrame()
         self.current_block = current_block
         self.name = name
@@ -471,12 +474,12 @@ class RecentlySubmittedTxDf():
         self.end_block = end_block
         self.max_gas = max_gas
         self.alltx = alltx
-        self.current_txpool = current_txpool
+        self.txpool = txpool
         self.init_df()
     
     def init_df(self):
         alltx = self.alltx
-        current_txpool = self.current_txpool
+        current_txpool = self.txpool.txpool_block
 
         #get tx matching selection criteria: block submitted, eligible nonce, exclude very high gas offered
 
@@ -489,7 +492,7 @@ class RecentlySubmittedTxDf():
             else:
                 x = row[0] / row[1] * 100
                 return np.round(x)
-        if (len(recentdf) > 50) & (len(current_txpool) > 500): #only useful if both have sufficient transactions for analysis; otherwise set to empty
+        if (len(recentdf) > 50) & (self.txpool.got_txpool): #only useful if both have sufficient transactions for analysis; otherwise set to empty
             recentdf['still_here'] = recentdf.index.isin(current_txpool.index).astype(int)
             recentdf['mined'] = recentdf.index.isin(alltx.index[alltx['block_mined'].notnull()]).astype(int)
             recentdf['round_gp_10gwei'] = recentdf['round_gp_10gwei'].astype(int)

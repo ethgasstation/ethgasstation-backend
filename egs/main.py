@@ -40,9 +40,9 @@ def master_control(args):
              # create summary stats for transactions in last 100 blocks
             alltx.analyzetx_last100blocks()
             #stats for transactions submitted ~ 5m ago
-            submitted_5mago = RecentlySubmittedTxDf('5mago', alltx.process_block, 8, 49, 2000000, alltx.df, txpool.txpool_block) 
+            submitted_5mago = RecentlySubmittedTxDf('5mago', alltx.process_block, 8, 49, 2000000, alltx.df, txpool) 
             #stats for transactions submitted ~ 30m ago
-            submitted_30mago = RecentlySubmittedTxDf('30mago', alltx.process_block, 50, 120, 2000000, alltx.df, txpool.txpool_block) 
+            submitted_30mago = RecentlySubmittedTxDf('30mago', alltx.process_block, 50, 120, 2000000, alltx.df, txpool) 
             #stats for tx in txpool
             txpool.make_txpool_block(alltx.process_block, alltx.df) 
             #make a prediction table by gas price
