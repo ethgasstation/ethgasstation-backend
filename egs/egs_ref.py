@@ -110,6 +110,10 @@ def predict(row):
         console.error("predict: Exception caught: " + str(e))
         return np.nan
 
+def make_gp_index():
+    df = pd.DataFrame(index=range(0,1001))
+    return (df)
+
 class TxpoolContainer ():
     """Handles txpool dataframe and analysis methods"""
     def __init__(self):
@@ -214,7 +218,8 @@ class BlockDataContainer():
         last10 = recent_blocks.sort_values('block_number', ascending=False).head(n=10)
         speed = last10['speed'].mean()
         #create hashpower accepting dataframe based on mingasprice accepted in block
-        hashpower = recent_blocks.groupby('mingasprice').count()
+        df = make_gp_index()
+        hashpower = recent_blocks[['mingasprice', 'block_number']].groupby('mingasprice').count()
         hashpower = hashpower.rename(columns={'block_number': 'count'})
         hashpower['cum_blocks'] = hashpower['count'].cumsum()
         totalblocks = hashpower['count'].sum()
@@ -226,7 +231,10 @@ class BlockDataContainer():
         avg_timemined = blockinterval['time_mined'].mean()
         if np.isnan(avg_timemined):
             avg_timemined = 15
-        self.hashpower = hashpower
+        df = df.join(hashpower, how='left')
+        df = df.fillna(method = 'ffill')
+        df = df.fillna(0)
+        self.hashpower = df[['hashp_pct']].astype(int).to_dict(orient='index')
         self.block_time = avg_timemined
         self.gaslimit = gaslimit
         self.speed = speed
@@ -393,7 +401,11 @@ class AllTxContainer():
         totaltx  = len(recent_blocks)
         hpower['cum_tx'] = hpower['count'].cumsum()
         hpower['hashp_pct'] = hpower['cum_tx']/totaltx*100
-        self.pctmined_gp_last100 = hpower
+        df = make_gp_index()
+        df = df.join(hpower, how='left')
+        df = df.fillna(method = 'ffill')
+        df = df.fillna(0)
+        self.pctmined_gp_last100 = df[['hashp_pct']].astype(int).to_dict(orient='index')
     
     def update_txblock(self, txpool_block, blockdata, predictiontable, gprecs):
         '''
@@ -571,26 +583,13 @@ class PredictionTable():
                 return rval
             return maxval
 
-        def get_hpa(gasprice, hashpower):
-            """gets the hash power accpeting the gas price over last 200 blocks"""
-            hpa = hashpower.loc[gasprice >= hashpower.index, 'hashp_pct']
-            if gasprice > hashpower.index.max():
-                hpa = 100
-            elif gasprice < hashpower.index.min():
-                hpa = 0
-            else:
-                hpa = hpa.max()
-            return int(hpa)
 
-
-        predictTable = pd.DataFrame({'gasprice' :  range(10, 1010, 10)})
-        ptable2 = pd.DataFrame({'gasprice' : range(0, 10, 1)})
-        predictTable = predictTable.append(ptable2).reset_index(drop=True)
-        predictTable = predictTable.sort_values('gasprice').reset_index(drop=True)
-        predictTable['hashpower_accepting'] = predictTable['gasprice'].apply(get_hpa, args=(hashpower,))
-        predictTable['hashpower_accepting2'] = predictTable['gasprice'].apply(get_hpa, args=(hpower,))
-        gp_lookup = predictTable.set_index('gasprice')['hashpower_accepting'].to_dict()
-        gp_lookup2 = predictTable.set_index('gasprice')['hashpower_accepting2'].to_dict()
+        predictTable = make_gp_index()
+        predictTable['hashpower_accepting'] = pd.DataFrame.from_dict(hashpower, orient='index')
+        predictTable['hashpower_accepting2'] = pd.DataFrame.from_dict(hpower, orient='index')
+        
+        print (predictTable)
+        xxxx
 
         if not txpool_by_gp.empty:
             predictTable['tx_atabove'] = predictTable['gasprice'].apply(get_tx_atabove, args=(txpool_by_gp,))
