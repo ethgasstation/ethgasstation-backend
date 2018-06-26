@@ -160,14 +160,28 @@ class TxpoolContainer ():
             self.got_txpool = False
             console.info('txpool skipped')
         
-        if not txpool_block.empty:
+        if self.got_txpool:
             self.txpool_block = txpool_block
             #create new df with txpool grouped by gp 
             self.txpool_by_gp = txpool_block[['gas_price', 'round_gp_10gwei']].groupby('round_gp_10gwei').agg({'gas_price':'count'})
+            self.txpool_by_gp.rename(columns = {'gas_price':'tx_atabove'}, inplace=True)
+            df = make_gp_index()
+            temp = self.txpool_by_gp.loc[self.txpool_by_gp.index >=1000]
+            if not temp.empty:
+                high_tx = temp['tx_atabove'].sum()        
+                self.txpool_by_gp.loc[1000, 'tx_atabove'] = high_tx
+                self.txpool_by_gp = self.txpool_by_gp.loc[self.txpool_by_gp.index <= 1000]
+            self.txpool_by_gp = self.txpool_by_gp.sort_index(ascending=False)
+            self.txpool_by_gp = self.txpool_by_gp.cumsum()
+            df = df.join(self.txpool_by_gp, how = 'left')
+            df = df.fillna(method='bfill')
+            df = df.fillna(0)
+            self.txpool_by_gp = df[['tx_atabove']].to_dict(orient='index')
+
             
         else:
             self.txpool_block = pd.DataFrame()
-            self.txpool_by_gp = pd.DataFrame()
+            self.txpool_by_gp = {}
             console.warn("txpool block empty")
     
     def prune(self, block):
@@ -546,15 +560,6 @@ class PredictionTable():
         submitted_5mago = self.recentdf
         submitted_30mago = self.remotedf
 
-        def get_tx_atabove(gasprice, txpool_by_gp):
-            """gets the number of transactions in the txpool at or above the given gasprice"""
-            txAtAb = txpool_by_gp.loc[txpool_by_gp.index >= gasprice, 'gas_price']
-            if gasprice > txpool_by_gp.index.max():
-                txAtAb = 0
-            else:
-                txAtAb = txAtAb.sum()
-            return txAtAb
-
         def get_recent_value(gasprice, submitted_recent, col):
             """gets values from recenttx df for prediction table"""
             if gasprice in submitted_recent.index:
@@ -587,15 +592,10 @@ class PredictionTable():
         predictTable = make_gp_index()
         predictTable['hashpower_accepting'] = pd.DataFrame.from_dict(hashpower, orient='index')
         predictTable['hashpower_accepting2'] = pd.DataFrame.from_dict(hpower, orient='index')
+        predictTable['tx_atabove'] = pd.DataFrame.from_dict(txpool_by_gp, orient='index')
         
         print (predictTable)
         xxxx
-
-        if not txpool_by_gp.empty:
-            predictTable['tx_atabove'] = predictTable['gasprice'].apply(get_tx_atabove, args=(txpool_by_gp,))
-            txatabove_lookup = predictTable.set_index('gasprice')['tx_atabove'].to_dict()
-        else:
-            txatabove_lookup = None
         
         if not submitted_5mago.empty:
             predictTable['s5mago'] = predictTable['gasprice'].apply(check_recent, args= (submitted_5mago,))
