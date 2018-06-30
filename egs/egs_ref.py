@@ -431,7 +431,7 @@ class AllTxContainer():
         print (txpool_block)
         txpool_block = txpool_block.drop(['hashpower_accepting', 'hashpower_accepting2', 'tx_atabove', 'expectedTime', 'expectedWait'], axis=1)
         txpool_block = txpool_block.join(predictiontable.predictiondf, how='left', on='round_gp_10gwei')
-        txpool_block['safelow'] = gprecs['safelow']
+        txpool_block['safelow'] = gprecs['safeLow']
         txpool_block['average'] = gprecs['average']
         console.info("updating " + str(len(txpool_block)) + " transactions")
         print (txpool_block)
