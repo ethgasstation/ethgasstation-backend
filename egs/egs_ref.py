@@ -432,11 +432,11 @@ class AllTxContainer():
             return
         block = self.process_block
         gaslimit = blockdata.gaslimit
-        predictiontable = predictiontable.reset_index(keep=True)
-        predictiontable = predictiontable.rename(columns={'index':'round_gp_10gwei'})
+        ptable = predictiontable.predictiondf.reset_index(drop=False)
+        ptable = ptable.rename(columns={'index':'round_gp_10gwei'})
         print (predictiontable)
         txpool_block = txpool_block.loc[txpool_block['block_posted']==block].copy()
-        txpool_block = txpool_block.join(predictiontable, how='left', on='round_gp_10gwei')
+        txpool_block = txpool_block.join(ptable, how='left', on='round_gp_10gwei')
         txpool_block['expectedWait'] = txpool_block.apply(predict, axis=1)
         txpool_block['expectedTime'] = txpool_block['expectedWait'].apply(lambda x: np.round((x * blockdata.block_time / 60), decimals=2))
         txpool_block['safelow'] = gprecs['safelow']
