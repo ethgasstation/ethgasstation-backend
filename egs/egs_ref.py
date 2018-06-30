@@ -427,8 +427,6 @@ class AllTxContainer():
         if txpool_block is None:
             return
         block = self.process_block
-        ptable = predictiontable.predictiondf.reset_index(drop=False)
-        ptable = ptable.rename(columns={'index':'round_gp_10gwei'})
         print (ptable)
         txpool_block = txpool_block.loc[txpool_block['block_posted']==block].copy()
         print (txpool_block)
