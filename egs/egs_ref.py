@@ -624,8 +624,8 @@ class GasPriceReport():
             wait = round(wait, 1)
             return float(wait)
         
-        array30m = np.append(array30m, safelow)
-        array5m = np.append(array5m, average)
+        array30m.append(safelow)
+        array5m.append(average)
 
         gprecs = {}
 
