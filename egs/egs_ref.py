@@ -101,8 +101,6 @@ def predict(row):
         prediction = np.exp(sum1)
         if prediction < 2:
             prediction = 2
-        if row['gas_offered'] > 2000000:
-            prediction = prediction + 100
         return np.round(prediction, decimals=2)
     except Exception as e:
         console.error("predict: Exception caught: " + str(e))
