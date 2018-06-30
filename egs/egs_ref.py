@@ -649,9 +649,9 @@ class GasPriceReport():
         gprecs['blockNum'] = block
         gprecs['speed'] = speed
 
-        if array5m.size > 20:
+        if len(array5m) > 20:
             array5m.pop(0)
-        if array30m.size > 20:
+        if len(array30m) > 20:
             array30m.pop(0)
 
         self.gprecs = gprecs
