@@ -574,7 +574,7 @@ class PredictionTable():
         try:
             if not txpool.txpool_block.empty:
                 self.predictiondf.reset_index(inplace=True, drop=False)
-                self.predictiondf.rename(columns={'index'='gasprice'})
+                self.predictiondf.rename(columns={'index':'gasprice'}, inplace=True)
                 self.predictiondf['gasprice'] = self.predictiondf['gasprice']/10
                 prediction_tableout = self.predictiondf.to_json(orient='records')
                 exporter.write_json('predictTable', prediction_tableout)
