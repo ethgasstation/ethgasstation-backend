@@ -428,7 +428,7 @@ class AllTxContainer():
             return
         block = self.process_block
         txpool_block = txpool_block.loc[txpool_block['block_posted']==block].copy()
-        txpool_block = txpool_block[['block_posted', 'nonce', 'account_nonce', 'chained', 'gas_price', 'gas_offered', 'to_address', 'from_address']]
+        txpool_block = txpool_block[['block_posted', 'nonce', 'account_nonce', 'chained', 'gas_price', 'gas_offered', 'to_address', 'from_address', 'round_gp_10gwei']]
         txpool_block = txpool_block.join(predictiontable.predictiondf, how='left', on='round_gp_10gwei')
         txpool_block['safelow'] = gprecs['safeLow']
         txpool_block['average'] = gprecs['average']
