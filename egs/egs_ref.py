@@ -432,7 +432,7 @@ class AllTxContainer():
         print (ptable)
         txpool_block = txpool_block.loc[txpool_block['block_posted']==block].copy()
         print (txpool_block)
-        txpool_block = txpool_block.drop(['hashpower_accepting', 'hashpower_accepting2', 'tx_atabove', 'expected_wait', 'expected_time', ], axis=1)
+        txpool_block = txpool_block.drop(['hashpower_accepting', 'hashpower_accepting2', 'tx_atabove'], axis=1)
         txpool_block = txpool_block.join(ptable, how='left', on='round_gp_10gwei')
         txpool_block['safelow'] = gprecs['safelow']
         txpool_block['average'] = gprecs['average']
