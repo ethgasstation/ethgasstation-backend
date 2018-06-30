@@ -428,13 +428,11 @@ class AllTxContainer():
             return
         block = self.process_block
         txpool_block = txpool_block.loc[txpool_block['block_posted']==block].copy()
-        print (txpool_block)
         txpool_block = txpool_block.drop(['hashpower_accepting', 'hashpower_accepting2', 'tx_atabove', 'expectedTime', 'expectedWait'], axis=1)
         txpool_block = txpool_block.join(predictiontable.predictiondf, how='left', on='round_gp_10gwei')
         txpool_block['safelow'] = gprecs['safeLow']
         txpool_block['average'] = gprecs['average']
         console.info("updating " + str(len(txpool_block)) + " transactions")
-        print (txpool_block)
         self.df = self.df.combine_first(txpool_block)
         
 
@@ -518,7 +516,6 @@ class RecentlySubmittedTxDf():
         df = self.df
         safe = df.loc[(df['total'] >= 1) & (df['mined'] >=1) & (df['pct_remaining'] < 10)]
         self.safe = safe.index.min()
-        print (self.safe)
 
     
     def print_length(self):
@@ -658,7 +655,6 @@ class GasPriceReport():
         self.gprecs = gprecs
         self.array5m = array5m
         self.array30m = array30m
-        print (self.gprecs)
 
 
     def write_to_json(self):
