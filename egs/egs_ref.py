@@ -436,6 +436,7 @@ class AllTxContainer():
         print (ptable)
         txpool_block = txpool_block.loc[txpool_block['block_posted']==block].copy()
         print (txpool_block)
+        txpool_block = txpool_block.drop(['haspower_accepting', 'hashpower_accepting2', 'tx_atabove', 'expected_wait', 'expected_time', ], axis=1)
         txpool_block = txpool_block.join(ptable, how='left', on='round_gp_10gwei')
         txpool_block['expectedWait'] = txpool_block.apply(predict, axis=1)
         txpool_block['expectedTime'] = txpool_block['expectedWait'].apply(lambda x: np.round((x * blockdata.block_time / 60), decimals=2))
@@ -574,9 +575,6 @@ class PredictionTable():
             predictTable['pct_mined_30m'] =  submitted_30mago['pct_mined']
             predictTable['total_seen_30m'] =  submitted_30mago['total']
     
-        predictTable['gas_offered'] = 0
-        predictTable['highgas2'] = 0
-        predictTable['chained'] = 0
         #to-do - fix
         predictTable['expectedWait'] = predictTable.apply(predict, axis=1)
         predictTable['expectedTime'] = predictTable['expectedWait'].apply(lambda x: np.round((x * avg_timemined / 60), decimals=2))
