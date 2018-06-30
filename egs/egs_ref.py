@@ -96,8 +96,6 @@ class CleanBlock():
 
 def predict(row):
     """predicts block wait time according to model coefs from model params"""
-    if row['chained'] == 1:
-        return np.nan
     try:
         sum1 = (INTERCEPT + (row['hashpower_accepting'] * HPA_COEF))
         prediction = np.exp(sum1)
@@ -438,8 +436,6 @@ class AllTxContainer():
         print (txpool_block)
         txpool_block = txpool_block.drop(['haspower_accepting', 'hashpower_accepting2', 'tx_atabove', 'expected_wait', 'expected_time', ], axis=1)
         txpool_block = txpool_block.join(ptable, how='left', on='round_gp_10gwei')
-        txpool_block['expectedWait'] = txpool_block.apply(predict, axis=1)
-        txpool_block['expectedTime'] = txpool_block['expectedWait'].apply(lambda x: np.round((x * blockdata.block_time / 60), decimals=2))
         txpool_block['safelow'] = gprecs['safelow']
         txpool_block['average'] = gprecs['average']
         console.info("updating " + str(len(txpool_block)) + " transactions")
