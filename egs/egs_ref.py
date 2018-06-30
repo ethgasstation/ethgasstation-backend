@@ -427,11 +427,10 @@ class AllTxContainer():
         if txpool_block is None:
             return
         block = self.process_block
-        print (ptable)
         txpool_block = txpool_block.loc[txpool_block['block_posted']==block].copy()
         print (txpool_block)
         txpool_block = txpool_block.drop(['hashpower_accepting', 'hashpower_accepting2', 'tx_atabove', 'expectedTime', 'expectedWait'], axis=1)
-        txpool_block = txpool_block.join(ptable, how='left', on='round_gp_10gwei')
+        txpool_block = txpool_block.join(predictiontable.predictiondf, how='left', on='round_gp_10gwei')
         txpool_block['safelow'] = gprecs['safelow']
         txpool_block['average'] = gprecs['average']
         console.info("updating " + str(len(txpool_block)) + " transactions")
