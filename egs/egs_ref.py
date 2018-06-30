@@ -178,7 +178,7 @@ class TxpoolContainer ():
             df = df.join(self.txpool_by_gp, how = 'left')
             df = df.fillna(method='bfill')
             df = df.fillna(0)
-            self.txpool_by_gp = df[['tx_atabove']].to_dict(orient='index')
+            self.txpool_by_gp = df
         else:
             self.txpool_block = pd.DataFrame()
             self.txpool_by_gp = {}
@@ -251,7 +251,7 @@ class BlockDataContainer():
         self.avg = df.loc[df['hashp_pct']>=60].index.min()
         self.fast = df.loc[df['hashp_pct']>=90].index.min()
         self.fastest = df.loc[df['hashp_pct']>=99].index.min()
-        self.hashpower = df[['hashp_pct']].astype(int).to_dict(orient='index')
+        self.hashpower = df
         self.block_time = avg_timemined
         self.gaslimit = gaslimit
         self.speed = speed
@@ -422,7 +422,7 @@ class AllTxContainer():
         df = df.join(hpower, how='left')
         df = df.fillna(method = 'ffill')
         df = df.fillna(0)
-        self.pctmined_gp_last100 = df[['hashp_pct']].astype(int).to_dict(orient='index')
+        self.pctmined_gp_last100 = df
     
     def update_txblock(self, txpool_block, blockdata, predictiontable, gprecs):
         '''
@@ -432,31 +432,17 @@ class AllTxContainer():
             return
         block = self.process_block
         gaslimit = blockdata.gaslimit
-        gp_lookup = predictiontable.gp_lookup
-        gp_lookup2 = predictiontable.gp_lookup2
-        txatabove_lookup = predictiontable.txatabove_lookup
-        recent_lookup = predictiontable.recent_lookup
-        remote_lookup = predictiontable.remote_lookup
-
+        predictiontable = predictiontable.reset_index(keep=True)
+        predictiontable = predictiontable.rename(columns={'index':'round_gp_10gwei'})
+        print (predictiontable)
         txpool_block = txpool_block.loc[txpool_block['block_posted']==block].copy()
-        txpool_block['pct_limit'] = txpool_block['gas_offered'].apply(lambda x: x / gaslimit)
-        txpool_block['high_gas_offered'] = (txpool_block['pct_limit'] > HIGHGAS1).astype(int)
-        txpool_block['highgas2'] = (txpool_block['pct_limit'] > HIGHGAS2).astype(int)
-        txpool_block['hashpower_accepting'] = txpool_block['round_gp_10gwei'].apply(lambda x: gp_lookup[x] if x in gp_lookup else 100)
-        txpool_block['hashpower_accepting2'] = txpool_block['round_gp_10gwei'].apply(lambda x: gp_lookup2[x] if x in gp_lookup2 else 100)
-        if txatabove_lookup is not None:
-            txpool_block['tx_atabove'] = txpool_block['round_gp_10gwei'].apply(lambda x: txatabove_lookup[x] if x in txatabove_lookup else 1)
-        if recent_lookup is not None:
-            txpool_block['s5mago'] = txpool_block['round_gp_10gwei'].apply(lambda x: recent_lookup[x] if x in recent_lookup else 0)
-        if remote_lookup is not None:
-            txpool_block['s30mago'] = txpool_block['round_gp_10gwei'].apply(lambda x: remote_lookup[x] if x in remote_lookup else 0)
+        txpool_block = txpool_block.join(predictiontable, how='left', on='round_gp_10gwei')
         txpool_block['expectedWait'] = txpool_block.apply(predict, axis=1)
         txpool_block['expectedTime'] = txpool_block['expectedWait'].apply(lambda x: np.round((x * blockdata.block_time / 60), decimals=2))
-        txpool_block['safelow_calc'] = gprecs['safelow_calc']
-        txpool_block['safelow_txpool'] = gprecs['safelow_txpool']
-        txpool_block['average_calc'] = gprecs['average_calc']
-        txpool_block['average_txpool'] = gprecs['average_txpool']
+        txpool_block['safelow'] = gprecs['safelow']
+        txpool_block['average'] = gprecs['average']
         console.info("updating " + str(len(txpool_block)) + " transactions")
+        print (txpool_block)
         self.df = self.df.combine_first(txpool_block)
         
 
@@ -574,10 +560,10 @@ class PredictionTable():
 
 
         predictTable = make_gp_index()
-        predictTable['hashpower_accepting'] = pd.DataFrame.from_dict(hashpower, orient='index')
-        predictTable['hashpower_accepting2'] = pd.DataFrame.from_dict(hpower, orient='index')
+        predictTable['hashpower_accepting'] = hashpower['hashp_pct']
+        predictTable['hashpower_accepting2'] = hpower['hashp_pct']
         if self.txpool.got_txpool:
-            predictTable['tx_atabove'] = pd.DataFrame.from_dict(txpool_by_gp, orient='index')
+            predictTable['tx_atabove'] = txpool_by_gp['tx_atabove']
         if not submitted_5mago.empty:
             predictTable['pct_remaining5m'] = submitted_5mago['pct_remaining']
             predictTable['pct_mined_5m'] =  submitted_5mago['pct_mined']
