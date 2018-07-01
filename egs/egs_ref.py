@@ -718,6 +718,8 @@ class GasPriceReport():
         def get_average():
             series = prediction_table.loc[prediction_table['hashpower_accepting'] >= 60, 'gasprice']
             average_calc = series.min()
+            if not average_calc:
+                average_calc = 1000
             (average, average_txpool) = gp_from_txpool('average', average_calc)
             if average is np.nan:
                 average = average_calc
