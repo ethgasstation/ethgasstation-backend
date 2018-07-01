@@ -807,6 +807,12 @@ class GasPriceReport():
         if np.isnan(gprecs['average']):
             gprecs['average'] = 1000
             gprecs['average_calc'] = 1000
+        
+        if np.isnan(gprecs['safelow_calc']):
+            gprecs['safelow_calc'] = 1000
+        
+        if np.isnan(gprecs['safelow']):
+            gprecs['safelow'] = 1000
         gprecs['average_txpool'] = gprecs['average']
 
         if (gprecs['fast'] < gprecs['average']):
