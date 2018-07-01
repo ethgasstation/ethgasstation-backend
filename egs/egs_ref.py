@@ -804,6 +804,8 @@ class GasPriceReport():
         else:
             array5m = np.append(array5m, gprecs['average'])
         (gprecs['average'], array5m) = check_recent_mediangp(gprecs['average'], array5m, gprecs['average_calc'])
+        if np.isnan(gprecs['average']):
+            gprecs['average'] = 1000
         gprecs['average_txpool'] = gprecs['average']
 
         if (gprecs['fast'] < gprecs['average']):
