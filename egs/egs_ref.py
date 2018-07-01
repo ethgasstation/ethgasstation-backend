@@ -514,8 +514,14 @@ class RecentlySubmittedTxDf():
     
     def get_txpool(self):
         df = self.df
-        safe = df.loc[(df['total'] >= 1) & (df['mined'] >=1) & (df['pct_remaining'] < 10)]
-        self.safe = safe.index.min()
+        unsafe = df.loc[(df['total'] >= 10) & (df['pct_remaining'] > 20)]
+        unsafe_gp = unsafe.index.max()
+        if unsafe_gp
+            safe = df.loc[(df['total'] >= 1) & (df['mined'] >=1) & (df['pct_remaining'] < 10) & (df.index > unsafe_gp)]
+        else:
+            safe = df.loc[(df['total'] >= 1) & (df['mined'] >=1) & (df['pct_remaining'] < 10)]
+        safe_gp = safe.index.min()
+        self.safe = safe_gp
 
     
     def print_length(self):
@@ -576,6 +582,7 @@ class PredictionTable():
                 self.predictiondf.reset_index(inplace=True, drop=False)
                 self.predictiondf.rename(columns={'index':'gasprice'}, inplace=True)
                 self.predictiondf['gasprice'] = self.predictiondf['gasprice']/10
+                self.predictiondf = self.predictiondf.loc[(self.predictiondf['total_seen_5m'] > 0) | (self.predictiondf['total_seen_30m'] > 0)]
                 prediction_tableout = self.predictiondf.to_json(orient='records')
                 exporter.write_json('predictTable', prediction_tableout)
         except Exception as e:
