@@ -516,11 +516,15 @@ class RecentlySubmittedTxDf():
         df = self.df
         unsafe = df.loc[(df['total'] >= 10) & (df['pct_remaining'] > 20)]
         unsafe_gp = unsafe.index.max()
-        if unsafe_gp
+        print (unsafe_gp)
+        if unsafe_gp:
+            print ('u')
             safe = df.loc[(df['total'] >= 1) & (df['mined'] >=1) & (df['pct_remaining'] < 10) & (df.index > unsafe_gp)]
         else:
+            print ('s')
             safe = df.loc[(df['total'] >= 1) & (df['mined'] >=1) & (df['pct_remaining'] < 10)]
         safe_gp = safe.index.min()
+        print (safe_gp)
         self.safe = safe_gp
 
     
