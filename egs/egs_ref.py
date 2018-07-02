@@ -515,12 +515,12 @@ class RecentlySubmittedTxDf():
     
     def get_txpool(self):
         df = self.df
-        unsafe = df.loc[(df['total'] >= 10) & (df['pct_remaining'] > 20)]
+        unsafe = df.loc[(df['total'] >= 5) & (df['pct_remaining'] > 20)]
         unsafe_gp = unsafe.index.max()
         if not np.isnan(unsafe_gp):
-            safe = df.loc[(df['total'] >= 1) & (df['mined'] >=1) & (df['pct_remaining'] < 10) & (df.index > unsafe_gp)]
+            safe = df.loc[(df['total'] >= 2) & (df['mined'] >=1) & (df['pct_remaining'] < 10) & (df.index > unsafe_gp)]
         else:
-            safe = df.loc[(df['total'] >= 1) & (df['mined'] >=1) & (df['pct_remaining'] < 10)]
+            safe = df.loc[(df['total'] >= 2) & (df['mined'] >=1) & (df['pct_remaining'] < 10)]
         safe_gp = safe.index.min()
         self.safe = safe_gp
 
