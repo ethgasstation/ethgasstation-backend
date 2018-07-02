@@ -107,7 +107,7 @@ def predict(row):
         return np.nan
 
 def make_gp_index():
-    df = pd.DataFrame(index=range(0,1001))
+    df = pd.DataFrame(index=range(0,5001))
     return (df)
 
 class TxpoolContainer ():

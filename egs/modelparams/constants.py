@@ -32,5 +32,5 @@ HIGHGAS1 = .037
 HIGHGAS2 = .15
 
 # Highest gas price tracked
-MAX_GP = 1000
+MAX_GP = 5000
 
