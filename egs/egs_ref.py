@@ -645,37 +645,6 @@ class GasPriceReport():
         array5m.append(average)
 
         gprecs = {}
-<<<<<<< HEAD
-
-        (gprecs['safeLow'], gprecs['safelow_calc'], gprecs['safelow_txpool']) = get_safelow()
-
-        (gprecs['average'], gprecs['average_calc'], gprecs['average_txpool']) = get_average()
-
-        gprecs['fast'] = get_fast()
-
-        if gprecs['safelow_txpool'] is not np.nan :
-            array30m = np.append(array30m, gprecs['safelow_txpool'])
-        else:
-            array30m = np.append(array30m, gprecs['safeLow'])
-        (gprecs['safeLow'], array30m) = check_recent_mediangp(gprecs['safeLow'], array30m, gprecs['safelow_calc'])
-        gprecs['safelow_txpool'] = gprecs['safeLow']
-
-        if gprecs['average_txpool'] is not np.nan :
-            array5m = np.append(array5m, gprecs['average_txpool'])
-        else:
-            array5m = np.append(array5m, gprecs['average'])
-        (gprecs['average'], array5m) = check_recent_mediangp(gprecs['average'], array5m, gprecs['average_calc'])
-        if np.isnan(gprecs['average']):
-            gprecs['average'] = 1000
-            gprecs['average_calc'] = 1000
-        
-        if np.isnan(gprecs['safelow_calc']):
-            gprecs['safelow_calc'] = 1000
-        
-        if np.isnan(gprecs['safeLow']):
-            gprecs['safeLow'] = 1000
-        gprecs['average_txpool'] = gprecs['average']
-=======
         gprecs['safeLow'] = np.percentile(array30m, 50)
         gprecs['average'] = np.percentile(array5m, 50)
         gprecs['fast'] = self.blockdata.fast
@@ -684,7 +653,6 @@ class GasPriceReport():
         gprecs['fastest'] = self.blockdata.fastest
         if np.isnan(gprecs['fastest']):
             gprecs['fastest'] = MAX_GP
->>>>>>> testing
 
         if (gprecs['fast'] < gprecs['average']):
             gprecs['fast'] = gprecs['average']
