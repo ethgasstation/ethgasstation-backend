@@ -31,3 +31,6 @@ S5MAGO = 0.0176
 HIGHGAS1 = .037
 HIGHGAS2 = .15
 
+# Highest gas price tracked
+MAX_GP = 1000
+

@@ -96,19 +96,19 @@ class CleanBlock():
 
 def predict(row):
     """predicts block wait time according to model coefs from model params"""
-    if row['chained'] == 1:
-        return np.nan
     try:
         sum1 = (INTERCEPT + (row['hashpower_accepting'] * HPA_COEF))
         prediction = np.exp(sum1)
         if prediction < 2:
             prediction = 2
-        if row['gas_offered'] > 2000000:
-            prediction = prediction + 100
         return np.round(prediction, decimals=2)
     except Exception as e:
         console.error("predict: Exception caught: " + str(e))
         return np.nan
+
+def make_gp_index():
+    df = pd.DataFrame(index=range(0,1001))
+    return (df)
 
 class TxpoolContainer ():
     """Handles txpool dataframe and analysis methods"""
@@ -156,20 +156,34 @@ class TxpoolContainer ():
             self.got_txpool = False
             console.info('txpool skipped')
         
-        if not txpool_block.empty:
+        if self.got_txpool:
             self.txpool_block = txpool_block
+            txpool_block = txpool_block.loc[txpool_block['chained']==0]
             #create new df with txpool grouped by gp 
             self.txpool_by_gp = txpool_block[['gas_price', 'round_gp_10gwei']].groupby('round_gp_10gwei').agg({'gas_price':'count'})
-            
+            self.txpool_by_gp.rename(columns = {'gas_price':'tx_atabove'}, inplace=True)
+            df = make_gp_index()
+            #combine tx with gp >=100 gwei
+            #todo replace with max gp var
+            temp = self.txpool_by_gp.loc[self.txpool_by_gp.index >= MAX_GP]
+            if not temp.empty:
+                high_tx = temp['tx_atabove'].sum()        
+                self.txpool_by_gp.loc[MAX_GP, 'tx_atabove'] = high_tx
+                self.txpool_by_gp = self.txpool_by_gp.loc[self.txpool_by_gp.index <= MAX_GP]
+            self.txpool_by_gp = self.txpool_by_gp.sort_index(ascending=False)
+            self.txpool_by_gp = self.txpool_by_gp.cumsum()
+            df = df.join(self.txpool_by_gp, how = 'left')
+            df = df.fillna(method='bfill')
+            df = df.fillna(0)
+            self.txpool_by_gp = df
         else:
             self.txpool_block = pd.DataFrame()
-            self.txpool_by_gp = pd.DataFrame()
+            self.txpool_by_gp = {}
             console.warn("txpool block empty")
     
     def prune(self, block):
         self.txpool_df = self.txpool_df.loc[self.txpool_df['block'] > (block-10)]
-        
-        
+         
 class BlockDataContainer():
     """Handles block-level dataframe and its processing"""
     def __init__(self):
@@ -214,7 +228,8 @@ class BlockDataContainer():
         last10 = recent_blocks.sort_values('block_number', ascending=False).head(n=10)
         speed = last10['speed'].mean()
         #create hashpower accepting dataframe based on mingasprice accepted in block
-        hashpower = recent_blocks.groupby('mingasprice').count()
+        df = make_gp_index()
+        hashpower = recent_blocks[['mingasprice', 'block_number']].groupby('mingasprice').count()
         hashpower = hashpower.rename(columns={'block_number': 'count'})
         hashpower['cum_blocks'] = hashpower['count'].cumsum()
         totalblocks = hashpower['count'].sum()
@@ -226,7 +241,14 @@ class BlockDataContainer():
         avg_timemined = blockinterval['time_mined'].mean()
         if np.isnan(avg_timemined):
             avg_timemined = 15
-        self.hashpower = hashpower
+        df = df.join(hashpower, how='left')
+        df = df.fillna(method = 'ffill')
+        df = df.fillna(0)
+        self.safe = df.loc[df['hashp_pct']>=35].index.min()
+        self.avg = df.loc[df['hashp_pct']>=60].index.min()
+        self.fast = df.loc[df['hashp_pct']>=90].index.min()
+        self.fastest = df.loc[df['hashp_pct']>=99].index.min()
+        self.hashpower = df
         self.block_time = avg_timemined
         self.gaslimit = gaslimit
         self.speed = speed
@@ -393,40 +415,24 @@ class AllTxContainer():
         totaltx  = len(recent_blocks)
         hpower['cum_tx'] = hpower['count'].cumsum()
         hpower['hashp_pct'] = hpower['cum_tx']/totaltx*100
-        self.pctmined_gp_last100 = hpower
+        df = make_gp_index()
+        df = df.join(hpower, how='left')
+        df = df.fillna(method = 'ffill')
+        df = df.fillna(0)
+        self.pctmined_gp_last100 = df
     
     def update_txblock(self, txpool_block, blockdata, predictiontable, gprecs):
         '''
         updates transactions at block with calc values from prediction table
         '''
-        if txpool_block is None:
+        if txpool_block.empty:
             return
         block = self.process_block
-        gaslimit = blockdata.gaslimit
-        gp_lookup = predictiontable.gp_lookup
-        gp_lookup2 = predictiontable.gp_lookup2
-        txatabove_lookup = predictiontable.txatabove_lookup
-        recent_lookup = predictiontable.recent_lookup
-        remote_lookup = predictiontable.remote_lookup
-
         txpool_block = txpool_block.loc[txpool_block['block_posted']==block].copy()
-        txpool_block['pct_limit'] = txpool_block['gas_offered'].apply(lambda x: x / gaslimit)
-        txpool_block['high_gas_offered'] = (txpool_block['pct_limit'] > HIGHGAS1).astype(int)
-        txpool_block['highgas2'] = (txpool_block['pct_limit'] > HIGHGAS2).astype(int)
-        txpool_block['hashpower_accepting'] = txpool_block['round_gp_10gwei'].apply(lambda x: gp_lookup[x] if x in gp_lookup else 100)
-        txpool_block['hashpower_accepting2'] = txpool_block['round_gp_10gwei'].apply(lambda x: gp_lookup2[x] if x in gp_lookup2 else 100)
-        if txatabove_lookup is not None:
-            txpool_block['tx_atabove'] = txpool_block['round_gp_10gwei'].apply(lambda x: txatabove_lookup[x] if x in txatabove_lookup else 1)
-        if recent_lookup is not None:
-            txpool_block['s5mago'] = txpool_block['round_gp_10gwei'].apply(lambda x: recent_lookup[x] if x in recent_lookup else 0)
-        if remote_lookup is not None:
-            txpool_block['s30mago'] = txpool_block['round_gp_10gwei'].apply(lambda x: remote_lookup[x] if x in remote_lookup else 0)
-        txpool_block['expectedWait'] = txpool_block.apply(predict, axis=1)
-        txpool_block['expectedTime'] = txpool_block['expectedWait'].apply(lambda x: np.round((x * blockdata.block_time / 60), decimals=2))
-        txpool_block['safelow_calc'] = gprecs['safelow_calc']
-        txpool_block['safelow_txpool'] = gprecs['safelow_txpool']
-        txpool_block['average_calc'] = gprecs['average_calc']
-        txpool_block['average_txpool'] = gprecs['average_txpool']
+        txpool_block = txpool_block[['block_posted', 'nonce', 'account_nonce', 'chained', 'gas_price', 'gas_offered', 'to_address', 'from_address', 'round_gp_10gwei']]
+        txpool_block = txpool_block.join(predictiontable.predictiondf, how='left', on='round_gp_10gwei')
+        txpool_block['safelow'] = gprecs['safeLow']
+        txpool_block['average'] = gprecs['average']
         console.info("updating " + str(len(txpool_block)) + " transactions")
         self.df = self.df.combine_first(txpool_block)
         
@@ -475,6 +481,7 @@ class RecentlySubmittedTxDf():
         self.max_gas = max_gas
         self.alltx = alltx
         self.txpool = txpool
+        self.safe = None
         self.init_df()
     
     def init_df(self):
@@ -486,28 +493,41 @@ class RecentlySubmittedTxDf():
         recentdf = alltx.loc[(alltx['block_posted'] > (self.current_block - self.end_block)) & (alltx['block_posted'] < (self.current_block - self.start_block)) & (alltx['chained']==0) & (alltx['gas_offered'] < self.max_gas)].copy()
         self.total_tx = len(recentdf)
 
-        def roundresult(row):
-            if np.isnan(row[0]) or np.isnan(row[1]):
-                return 0
-            else:
-                x = row[0] / row[1] * 100
-                return np.round(x)
         if (len(recentdf) > 50) & (self.txpool.got_txpool): #only useful if both have sufficient transactions for analysis; otherwise set to empty
             recentdf['still_here'] = recentdf.index.isin(current_txpool.index).astype(int)
             recentdf['mined'] = recentdf.index.isin(alltx.index[alltx['block_mined'].notnull()]).astype(int)
             recentdf['round_gp_10gwei'] = recentdf['round_gp_10gwei'].astype(int)
             recentdf = recentdf[['gas_price', 'round_gp_10gwei', 'still_here', 'mined']].groupby('round_gp_10gwei').agg({'gas_price':'count', 'still_here':'sum', 'mined':'sum'})
             recentdf.rename(columns={'gas_price':'total'}, inplace=True)
-            recentdf['pct_unmined'] = recentdf[['still_here', 'total']].apply(roundresult, axis=1)
-            recentdf['pct_mined'] = recentdf[['mined', 'total']].apply(roundresult, axis=1)
+            recentdf['pct_remaining'] = recentdf['still_here'] / recentdf['total'] *100
+            recentdf['pct_mined'] = recentdf['mined'] / recentdf['total'] *100
+            recentdf['pct_remaining'] = recentdf['pct_remaining'].astype(int)
+            recentdf['pct_mined'] = recentdf['pct_mined'].astype(int)
+            df = make_gp_index()
+            df = df.join(recentdf, how='left')
             self.print_length()
-            self.df = recentdf
+            self.df = df
+            self.get_txpool()
         else:
             self.print_length()
             self.df = pd.DataFrame()
+            self.safe = None
+    
+    def get_txpool(self):
+        df = self.df
+        unsafe = df.loc[(df['total'] >= 10) & (df['pct_remaining'] > 20)]
+        unsafe_gp = unsafe.index.max()
+        if not np.isnan(unsafe_gp):
+            safe = df.loc[(df['total'] >= 1) & (df['mined'] >=1) & (df['pct_remaining'] < 10) & (df.index > unsafe_gp)]
+        else:
+            safe = df.loc[(df['total'] >= 1) & (df['mined'] >=1) & (df['pct_remaining'] < 10)]
+        safe_gp = safe.index.min()
+        self.safe = safe_gp
+
     
     def print_length(self):
             console.info("# of tx submitted ~ " + str(self.name) + " = " + str(self.total_tx))
+    
 
 
 class PredictionTable():
@@ -534,105 +554,39 @@ class PredictionTable():
         submitted_5mago = self.recentdf
         submitted_30mago = self.remotedf
 
-        def get_tx_atabove(gasprice, txpool_by_gp):
-            """gets the number of transactions in the txpool at or above the given gasprice"""
-            txAtAb = txpool_by_gp.loc[txpool_by_gp.index >= gasprice, 'gas_price']
-            if gasprice > txpool_by_gp.index.max():
-                txAtAb = 0
-            else:
-                txAtAb = txAtAb.sum()
-            return txAtAb
 
-        def get_recent_value(gasprice, submitted_recent, col):
-            """gets values from recenttx df for prediction table"""
-            if gasprice in submitted_recent.index:
-                rval = submitted_recent.at[gasprice, col]
-            else:
-                rval = 0
-            return rval
-        
-        def check_recent(gasprice, submitted_recent):
-            """gets the %of transactions unmined submitted in recent blocks"""
-
-            #set this to avoid false positive delays
-            submitted_recent.loc[(submitted_recent['still_here'] >= 1) & (submitted_recent['still_here'] <= 2) & (submitted_recent['total'] < 4), 'pct_unmined'] = np.nan
-            maxval = submitted_recent.loc[submitted_recent.index > gasprice, 'pct_unmined'].max()
-            if gasprice in submitted_recent.index:
-                stillh = submitted_recent.at[gasprice, 'still_here']
-                if stillh > 2:
-                    rval =  submitted_recent.at[gasprice, 'pct_unmined']
-                else:
-                    rval = maxval
-            else:
-                rval = maxval
-            if gasprice >= 1000:
-                rval = 0
-            if (rval > maxval) or (gasprice >= 1000) :
-                return rval
-            return maxval
-
-        def get_hpa(gasprice, hashpower):
-            """gets the hash power accpeting the gas price over last 200 blocks"""
-            hpa = hashpower.loc[gasprice >= hashpower.index, 'hashp_pct']
-            if gasprice > hashpower.index.max():
-                hpa = 100
-            elif gasprice < hashpower.index.min():
-                hpa = 0
-            else:
-                hpa = hpa.max()
-            return int(hpa)
-
-
-        predictTable = pd.DataFrame({'gasprice' :  range(10, 1010, 10)})
-        ptable2 = pd.DataFrame({'gasprice' : range(0, 10, 1)})
-        predictTable = predictTable.append(ptable2).reset_index(drop=True)
-        predictTable = predictTable.sort_values('gasprice').reset_index(drop=True)
-        predictTable['hashpower_accepting'] = predictTable['gasprice'].apply(get_hpa, args=(hashpower,))
-        predictTable['hashpower_accepting2'] = predictTable['gasprice'].apply(get_hpa, args=(hpower,))
-        gp_lookup = predictTable.set_index('gasprice')['hashpower_accepting'].to_dict()
-        gp_lookup2 = predictTable.set_index('gasprice')['hashpower_accepting2'].to_dict()
-
-        if not txpool_by_gp.empty:
-            predictTable['tx_atabove'] = predictTable['gasprice'].apply(get_tx_atabove, args=(txpool_by_gp,))
-            txatabove_lookup = predictTable.set_index('gasprice')['tx_atabove'].to_dict()
-        else:
-            txatabove_lookup = None
-        
+        predictTable = make_gp_index()
+        predictTable['hashpower_accepting'] = hashpower['hashp_pct']
+        predictTable['hashpower_accepting2'] = hpower['hashp_pct']
+        if self.txpool.got_txpool:
+            predictTable['tx_atabove'] = txpool_by_gp['tx_atabove']
         if not submitted_5mago.empty:
-            predictTable['s5mago'] = predictTable['gasprice'].apply(check_recent, args= (submitted_5mago,))
-            predictTable['pct_mined_5m'] =  predictTable['gasprice'].apply(get_recent_value, args=(submitted_5mago, 'pct_mined'))
-            predictTable['total_seen_5m'] =  predictTable['gasprice'].apply(get_recent_value, args=(submitted_5mago, 'total'))
-            s5mago_lookup = predictTable.set_index('gasprice')['s5mago'].to_dict()
-        else:
-            s5mago_lookup = None
+            predictTable['pct_remaining5m'] = submitted_5mago['pct_remaining']
+            predictTable['pct_mined_5m'] =  submitted_5mago['pct_mined']
+            predictTable['total_seen_5m'] =  submitted_5mago['total']
 
         if not submitted_30mago.empty:
-            predictTable['s1hago'] = predictTable['gasprice'].apply(check_recent, args= (submitted_30mago,))
-            predictTable['pct_mined_30m'] = predictTable['gasprice'].apply(get_recent_value, args=(submitted_30mago, 'pct_mined'))
-            predictTable['total_seen_30m'] = predictTable['gasprice'].apply(get_recent_value, args=(submitted_30mago, 'total'))
-            s1hago_lookup = predictTable.set_index('gasprice')['s1hago'].to_dict()
-        else:
-            s1hago_lookup = None
+            predictTable['pct_remaining30m'] = submitted_30mago['pct_remaining']
+            predictTable['pct_mined_30m'] =  submitted_30mago['pct_mined']
+            predictTable['total_seen_30m'] =  submitted_30mago['total']
     
-        predictTable['gas_offered'] = 0
-        predictTable['highgas2'] = 0
-        predictTable['chained'] = 0
+        #to-do - fix
         predictTable['expectedWait'] = predictTable.apply(predict, axis=1)
         predictTable['expectedTime'] = predictTable['expectedWait'].apply(lambda x: np.round((x * avg_timemined / 60), decimals=2))
-
         self.predictiondf = predictTable
-        self.txatabove_lookup = txatabove_lookup
-        self.gp_lookup = gp_lookup
-        self.gp_lookup2 = gp_lookup2
-        self.recent_lookup = s5mago_lookup
-        self.remote_lookup = s1hago_lookup
 
     def write_to_json(self, txpool):
         """write json data unless txpool block empty"""
         global exporter
         try:
-            if not txpool.txpool_block.empty:
+            if (not txpool.txpool_block.empty) & ('total_seen_5m' in self.predictiondf.columns):
+                self.predictiondf.reset_index(inplace=True, drop=False)
+                self.predictiondf.rename(columns={'index':'gasprice'}, inplace=True)
                 self.predictiondf['gasprice'] = self.predictiondf['gasprice']/10
+                if 'total_seen_30m' in self.predictiondf.columns:
+                    self.predictiondf = self.predictiondf.loc[(self.predictiondf['total_seen_5m'] > 0) | (self.predictiondf['total_seen_30m'] > 0)]
+                else:
+                    self.predictiondf = self.predictiondf.loc[self.predictiondf['total_seen_5m'] > 0]
                 prediction_tableout = self.predictiondf.to_json(orient='records')
                 exporter.write_json('predictTable', prediction_tableout)
         except Exception as e:
@@ -649,7 +603,7 @@ class GasPriceReport():
         self.array5m = array5m
         self.array30m = array30m
         self.gprecs = None
-        self.minlow = 0.1
+        self.minlow = 1
         self.make_gasprice_report()
         
       
@@ -662,92 +616,16 @@ class GasPriceReport():
         array30m = self.array30m
         minlow = self.minlow
         block = self.block
-        
 
-        def gp_from_txpool(timeframe, calc):
-            """calculates the gasprice from the txpool"""
-            if timeframe == 'average':
-                label_df = ['s5mago', 'pct_mined_5m', 'total_seen_5m']
-            elif timeframe == 'safelow':
-                label_df = ['s1hago', 'pct_mined_30m', 'total_seen_30m']
-        
-            if label_df[0] in prediction_table.columns:
-                try:
-                    #pct_unmined <10%, must have 1% mined (as opposed to dropped), and must have seen at least 2 transactions at the gas price
-                    series = prediction_table.loc[(prediction_table[label_df[0]] < 10) & (prediction_table[label_df[1]] > 1) & (prediction_table[label_df[2]] >= 2), 'gasprice']
-                    txpool = series.min()
-                    console.info("calc value: " + str(calc))
-                    console.info("txpool value: " + str(txpool))
-                    if (txpool < calc):
-                        rec = txpool
-                    elif (txpool > calc) and (prediction_table.loc[prediction_table['gasprice'] == (calc), label_df[0]].values[0] > 15):
-                        console.warn("txpool > calc")
-                        rec = txpool
-                    else:
-                        rec = calc
-                except Exception as e:
-                    console.error(e)
-                    txpool = np.nan
-                    rec = np.nan
-                return (rec, txpool)
-            else:
-                return (np.nan, np.nan)
-
-
-        def get_safelow():
-            series = prediction_table.loc[prediction_table['hashpower_accepting'] >= 35, 'gasprice']
-            safelow_calc = series.min()
-            (safelow, safelow_txpool) = gp_from_txpool('safelow', safelow_calc)
-            if safelow is np.nan:
-                safelow = safelow_calc
-            minhash_list = prediction_table.loc[prediction_table['hashpower_accepting']>=10, 'gasprice']
-            if (safelow < minhash_list.min()):
-                safelow = minhash_list.min()
-            if minlow >= 0:
-                console.debug("minlow " +str(minlow))
-                if safelow < minlow:
-                    safelow = minlow
-            if safelow < 1:
-                safelow = 1
-                safelow_txpool = 1
-            safelow = float(safelow)
-            safelow_txpool = float(safelow_txpool)
-            safelow_calc = float(safelow_calc)
-            return (safelow, safelow_calc, safelow_txpool)
-
-        def get_average():
-            series = prediction_table.loc[prediction_table['hashpower_accepting'] >= 60, 'gasprice']
-            average_calc = series.min()
-            if not average_calc:
-                average_calc = 1000
-            (average, average_txpool) = gp_from_txpool('average', average_calc)
-            if average is np.nan:
-                average = average_calc
-            minhash_list = prediction_table.loc[prediction_table['hashpower_accepting']>25, 'gasprice']
-            if average < minhash_list.min():
-                average = minhash_list.min()
-            if np.isnan(average):
-                average = average_calc
-            average = float(average)
-            average_txpool = float(average_txpool)
-            average_calc = float(average_calc)
-            return (average, average_calc, average_txpool)
-
-        def get_fast():
-            series = prediction_table.loc[prediction_table['hashpower_accepting'] >= 90, 'gasprice']
-            fastest = series.min()
-            if np.isnan(fastest):
-                fastest = 1000
-            return float(fastest)
-
-        def get_fastest():
-            fastest = prediction_table['expectedTime'].min()
-            series = prediction_table.loc[prediction_table['expectedTime'] == fastest, 'gasprice']
-            fastest = series.min()
-            minhash_list = prediction_table.loc[prediction_table['hashpower_accepting']>95, 'gasprice']
-            if fastest < minhash_list.min():
-                fastest = minhash_list.min()
-            return float(fastest)
+        if self.submitted_remote.safe:
+            safelow = self.submitted_remote.safe
+        else:
+            safelow = self.blockdata.safe       
+            
+        if self.submitted_recent.safe:
+            average = self.submitted_recent.safe
+        else:
+            average = self.blockdata.safe
 
         def get_wait(gasprice):
             try:
@@ -757,34 +635,17 @@ class GasPriceReport():
             wait = round(wait, 1)
             return float(wait)
 
-        def check_recent_mediangp (gprec, gparray, calc):
-            """stabilizes gp estimates over last 20m"""
-            try:
-                pct50 = np.percentile(gparray, 50)
-                if gprec <= pct50:
-                    if pct50 < 10:
-                        gprec_m = np.round(pct50)
-                    else:
-                        pct50 = pct50/10
-                        gprec_m = np.ceil(pct50) * 10
-                else:
-                    pct95 = np.percentile(gparray, 95)
-                    if gprec < pct95:
-                        gprec_m = gprec
-                    else:
-                        pct95 = pct95/10
-                        gprec_m = np.ceil(pct95) * 10
-                if gparray.size > 80:
-                    gparray = np.delete(gparray, 0)
-                if (gprec <= calc) and (gprec_m > calc):
-                    gprec_m = calc
-            except Exception as e:
-                console.error("check_recent_mediagp: Exception caught: " + str(e))
-                gprec_m = gprec
-            console.info("medianizer: %s" % str(gprec_m))
-            return (gprec_m, gparray)
+        console.info('safelow: ' + str(safelow))
+        console.info('avg: ' +str(average))
+        if np.isnan(safelow):
+            safelow = MAX_GP
+        if np.isnan(average):
+            average = MAX_GP
+        array30m.append(safelow)
+        array5m.append(average)
 
         gprecs = {}
+<<<<<<< HEAD
 
         (gprecs['safeLow'], gprecs['safelow_calc'], gprecs['safelow_txpool']) = get_safelow()
 
@@ -814,23 +675,37 @@ class GasPriceReport():
         if np.isnan(gprecs['safeLow']):
             gprecs['safeLow'] = 1000
         gprecs['average_txpool'] = gprecs['average']
+=======
+        gprecs['safeLow'] = np.percentile(array30m, 50)
+        gprecs['average'] = np.percentile(array5m, 50)
+        gprecs['fast'] = self.blockdata.fast
+        if np.isnan(gprecs['fast']):
+            gprecs['fast'] = MAX_GP
+        gprecs['fastest'] = self.blockdata.fastest
+        if np.isnan(gprecs['fastest']):
+            gprecs['fastest'] = MAX_GP
+>>>>>>> testing
 
         if (gprecs['fast'] < gprecs['average']):
             gprecs['fast'] = gprecs['average']
 
         if (gprecs['safeLow'] > gprecs['average']):
             gprecs['safeLow'] = gprecs['average']
-            gprecs['safelow_txpool'] = gprecs['average']
 
         gprecs['safeLowWait'] = get_wait(gprecs['safeLow'])
         gprecs['avgWait'] = get_wait(gprecs['average'])
 
         gprecs['fastWait'] = get_wait(gprecs['fast'])
-        gprecs['fastest'] = get_fastest()
         gprecs['fastestWait'] = get_wait(gprecs['fastest'])
         gprecs['block_time'] = block_time
         gprecs['blockNum'] = block
         gprecs['speed'] = speed
+
+        if len(array5m) > 20:
+            array5m.pop(0)
+        if len(array30m) > 20:
+            array30m.pop(0)
+
         self.gprecs = gprecs
         self.array5m = array5m
         self.array30m = array30m
