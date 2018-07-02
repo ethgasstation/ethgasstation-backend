@@ -158,6 +158,7 @@ class TxpoolContainer ():
         
         if self.got_txpool:
             self.txpool_block = txpool_block
+            txpool_block = txpool_block.loc[txpool_block['chained']==0]
             #create new df with txpool grouped by gp 
             self.txpool_by_gp = txpool_block[['gas_price', 'round_gp_10gwei']].groupby('round_gp_10gwei').agg({'gas_price':'count'})
             self.txpool_by_gp.rename(columns = {'gas_price':'tx_atabove'}, inplace=True)
@@ -424,7 +425,7 @@ class AllTxContainer():
         '''
         updates transactions at block with calc values from prediction table
         '''
-        if txpool_block is None:
+        if txpool_block.empty:
             return
         block = self.process_block
         txpool_block = txpool_block.loc[txpool_block['block_posted']==block].copy()
@@ -516,15 +517,11 @@ class RecentlySubmittedTxDf():
         df = self.df
         unsafe = df.loc[(df['total'] >= 10) & (df['pct_remaining'] > 20)]
         unsafe_gp = unsafe.index.max()
-        print (unsafe_gp)
-        if unsafe_gp:
-            print ('u')
+        if not np.isnan(unsafe_gp):
             safe = df.loc[(df['total'] >= 1) & (df['mined'] >=1) & (df['pct_remaining'] < 10) & (df.index > unsafe_gp)]
         else:
-            print ('s')
             safe = df.loc[(df['total'] >= 1) & (df['mined'] >=1) & (df['pct_remaining'] < 10)]
         safe_gp = safe.index.min()
-        print (safe_gp)
         self.safe = safe_gp
 
     
@@ -582,11 +579,14 @@ class PredictionTable():
         """write json data unless txpool block empty"""
         global exporter
         try:
-            if not txpool.txpool_block.empty:
+            if (not txpool.txpool_block.empty) & ('total_seen_5m' in self.predictiondf.columns):
                 self.predictiondf.reset_index(inplace=True, drop=False)
                 self.predictiondf.rename(columns={'index':'gasprice'}, inplace=True)
                 self.predictiondf['gasprice'] = self.predictiondf['gasprice']/10
-                self.predictiondf = self.predictiondf.loc[(self.predictiondf['total_seen_5m'] > 0) | (self.predictiondf['total_seen_30m'] > 0)]
+                if 'total_seen_30m' in self.predictiondf.columns:
+                    self.predictiondf = self.predictiondf.loc[(self.predictiondf['total_seen_5m'] > 0) | (self.predictiondf['total_seen_30m'] > 0)]
+                else:
+                    self.predictiondf = self.predictiondf.loc[self.predictiondf['total_seen_5m'] > 0]
                 prediction_tableout = self.predictiondf.to_json(orient='records')
                 exporter.write_json('predictTable', prediction_tableout)
         except Exception as e:
@@ -634,16 +634,25 @@ class GasPriceReport():
                 wait = 0
             wait = round(wait, 1)
             return float(wait)
-        
+
+        console.info('safelow: ' + str(safelow))
+        console.info('avg: ' +str(average))
+        if np.isnan(safelow):
+            safelow = MAX_GP
+        if np.isnan(average):
+            average = MAX_GP
         array30m.append(safelow)
         array5m.append(average)
 
         gprecs = {}
-
         gprecs['safeLow'] = np.percentile(array30m, 50)
         gprecs['average'] = np.percentile(array5m, 50)
         gprecs['fast'] = self.blockdata.fast
+        if np.isnan(gprecs['fast']):
+            gprecs['fast'] = MAX_GP
         gprecs['fastest'] = self.blockdata.fastest
+        if np.isnan(gprecs['fastest']):
+            gprecs['fastest'] = MAX_GP
 
         if (gprecs['fast'] < gprecs['average']):
             gprecs['fast'] = gprecs['average']
