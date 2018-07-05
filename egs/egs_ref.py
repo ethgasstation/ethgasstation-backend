@@ -464,7 +464,7 @@ class AllTxContainer():
     def prune(self):
         """keep dataframes and databases from getting too big"""
         deleteBlock_mined = self.process_block - 1500
-        deleteBlock_posted = self.process_block - 4500
+        deleteBlock_posted = self.process_block - 2500
         self.df = self.df.loc[((self.df['block_mined'].isnull()) & (self.df['block_posted'] > deleteBlock_posted)) | (self.df['block_mined'] > deleteBlock_mined)]
 
     
