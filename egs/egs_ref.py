@@ -465,7 +465,7 @@ class AllTxContainer():
         """keep dataframes and databases from getting too big"""
         deleteBlock_mined = self.process_block - 1500
         deleteBlock_posted = self.process_block - 4500
-        self.df = self.df.loc[(self.df['block_mined'] > deleteBlock_mined) | (self.df['block_posted'] > deleteBlock_posted)]
+        self.df = self.df.loc[((self.df['block_mined'].isnull()) & (self.df['block_posted'] > deleteBlock_posted)) | (self.df['block_mined'] > deleteBlock_mined)]
 
     
 
@@ -625,7 +625,7 @@ class GasPriceReport():
         if self.submitted_recent.safe:
             average = self.submitted_recent.safe
         else:
-            average = self.blockdata.safe
+            average = self.blockdata.avg
 
         def get_wait(gasprice):
             try:
@@ -673,7 +673,7 @@ class GasPriceReport():
             array5m.pop(0)
         if len(array30m) > 20:
             array30m.pop(0)
-
+        
         self.gprecs = gprecs
         self.array5m = array5m
         self.array30m = array30m
