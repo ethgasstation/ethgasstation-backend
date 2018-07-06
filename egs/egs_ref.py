@@ -158,7 +158,6 @@ class TxpoolContainer ():
         
         if self.got_txpool:
             self.txpool_block = txpool_block
-            txpool_block = txpool_block.loc[txpool_block['chained']==0]
             #create new df with txpool grouped by gp 
             self.txpool_by_gp = txpool_block[['gas_price', 'round_gp_10gwei']].groupby('round_gp_10gwei').agg({'gas_price':'count'})
             self.txpool_by_gp.rename(columns = {'gas_price':'tx_atabove'}, inplace=True)
