@@ -53,6 +53,10 @@ def master_control(args):
             array5m = gaspricereport.array5m 
             #hold recent safelow gp rec
             array30m = gaspricereport.array30m 
+            #make predicted wait times
+            if txpool.got_txpool:
+                predictiontable.get_predicted_wait(gaspricereport)
+                gaspricereport.get_wait(predictiontable.predictiondf)
             #updates tx submitted at current block with data from predictiontable, gpreport- this is for storing in mysql for later optional stats models.
             alltx.update_txblock(txpool.txpool_block, blockdata, predictiontable, gaspricereport.gprecs) 
         
@@ -81,7 +85,7 @@ def master_control(args):
             #write to mysql
             response = input ("save transactions to mysql (y/n)?")
             if (response.lower() == 'y'):
-                alltx.write_to_sql()
+                alltx.write_to_sql(txpool)
                 blockdata.write_to_sql()
                 sys.exit()
             else:

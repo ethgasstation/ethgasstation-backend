@@ -432,13 +432,17 @@ class AllTxContainer():
         txpool_block = txpool_block.join(predictiontable.predictiondf, how='left', on='round_gp_10gwei')
         txpool_block['safelow'] = gprecs['safeLow']
         txpool_block['average'] = gprecs['average']
+        txpool_block['nomine'] = gprecs['nomine']
         console.info("updating " + str(len(txpool_block)) + " transactions")
         self.df = self.df.combine_first(txpool_block)
         
 
-    def write_to_sql(self):
+    def write_to_sql(self, txpool):
         """writes to sql, prevent buffer overflow errors"""
         console.info("writing to mysql....this can take awhile")
+        prev_block = self.process_block-1
+        txp = txpool.txpool_df.loc[txpool.txpool_df['block']==prev_block]
+        self.df['txpool'] = self.df.index.isin(txp.index).astype(int)
         self.df.reset_index(inplace=True)
         length = len(self.df)
         chunks = int(np.ceil(length/1000))
@@ -481,6 +485,7 @@ class RecentlySubmittedTxDf():
         self.alltx = alltx
         self.txpool = txpool
         self.safe = None
+        self.nomine_gp = None
         self.init_df()
     
     def init_df(self):
@@ -511,6 +516,8 @@ class RecentlySubmittedTxDf():
             self.print_length()
             self.df = pd.DataFrame()
             self.safe = None
+            self.nomine_gp = None
+
     
     def get_txpool(self):
         df = self.df
@@ -521,7 +528,10 @@ class RecentlySubmittedTxDf():
         else:
             safe = df.loc[(df['total'] >= 2) & (df['mined'] >=1) & (df['pct_remaining'] < 10)]
         safe_gp = safe.index.min()
+        nomine= df.loc[(df['mined'] == 0) & (df.index < safe_gp)]
+        nomine_gp = nomine.index.max()
         self.safe = safe_gp
+        self.nomine_gp = nomine_gp
 
     
     def print_length(self):
@@ -548,7 +558,6 @@ class PredictionTable():
         """makes prediction table for number of blocks to confirmation"""
         hashpower = self.blockdata.hashpower
         hpower = self.alltx.pctmined_gp_last100
-        avg_timemined = self.blockdata.block_time
         txpool_by_gp = self.txpool.txpool_by_gp
         submitted_5mago = self.recentdf
         submitted_30mago = self.remotedf
@@ -568,9 +577,38 @@ class PredictionTable():
             predictTable['pct_remaining30m'] = submitted_30mago['pct_remaining']
             predictTable['pct_mined_30m'] =  submitted_30mago['pct_mined']
             predictTable['total_seen_30m'] =  submitted_30mago['total']
+
+        self.predictiondf = predictTable
     
-        #to-do - fix
-        predictTable['expectedWait'] = predictTable.apply(predict, axis=1)
+    def get_predicted_wait(self, gpreport):
+        """make wait time based on the data"""
+        predictTable = self.predictiondf
+        avg_timemined = self.blockdata.block_time
+        gprecs = gpreport.gprecs
+        predictTable['average'] = gprecs['average']
+        predictTable['safelow'] = gprecs['safeLow']
+        predictTable['nomine'] = gprecs['nomine']
+        predictTable['avgdiff'] = (predictTable.index >= predictTable['average']).astype(int)
+        predictTable['intercept'] = INTERCEPT 
+        predictTable['hpa_coef'] = HPA_COEF
+        predictTable['avgdiff_coef'] = AVGDIFF_COEF
+        predictTable['tx_atabove_coef'] = TXATABOVE_COEF
+        predictTable['int2'] = INTERCEPT2
+        predictTable['hpa_coef2'] = HPA_COEF2
+
+        
+        
+        
+        if gprecs['nomine']:
+            predictTable['sum'] = (predictTable['intercept'] + (predictTable['hashpower_accepting'] * predictTable['hpa_coef'])  + (predictTable['avgdiff'] * predictTable['avgdiff_coef']) + (predictTable['tx_atabove'] * predictTable['tx_atabove_coef']))
+            predictTable['expectedWait'] = predictTable['sum'].apply(lambda x: np.exp(x))
+            predictTable.loc[predictTable.index <= gprecs['nomine'], 'expectedWait'] = 1000
+        else:
+            predictTable['sum'] = (predictTable['int2'] + (predictTable['hashpower_accepting'] * predictTable['hpa_coef2']))
+            predictTable['expectedWait'] = predictTable['sum'].apply(lambda x: np.exp(x))
+            predictTable['unsafe'] = predictTable['hashpower_accepting'].apply(lambda x: 1 if x < 30 else 0)
+            predictTable.loc[predictTable['unsafe'] ==1, 'expectedWait'] = 1000
+        predictTable['expectedWait'] = predictTable['expectedWait'].apply(lambda x: x if x>=2 else 2)
         predictTable['expectedTime'] = predictTable['expectedWait'].apply(lambda x: np.round((x * avg_timemined / 60), decimals=2))
         self.predictiondf = predictTable
 
@@ -602,7 +640,6 @@ class GasPriceReport():
         self.array5m = array5m
         self.array30m = array30m
         self.gprecs = None
-        self.minlow = 1
         self.make_gasprice_report()
         
       
@@ -613,7 +650,6 @@ class GasPriceReport():
         speed = self.blockdata.speed
         array5m = self.array5m
         array30m = self.array30m
-        minlow = self.minlow
         block = self.block
 
         if self.submitted_remote.safe:
@@ -626,44 +662,35 @@ class GasPriceReport():
         else:
             average = self.blockdata.avg
 
-        def get_wait(gasprice):
-            try:
-                wait =  prediction_table.loc[prediction_table['gasprice']==gasprice, 'expectedTime'].values[0]
-            except:
-                wait = 0
-            wait = round(wait, 1)
-            return float(wait)
-
         console.info('safelow: ' + str(safelow))
         console.info('avg: ' +str(average))
-        if np.isnan(safelow):
-            safelow = MAX_GP
-        if np.isnan(average):
-            average = MAX_GP
+
+        gprecs = {}
+        gprecs['fast'] = self.blockdata.fast
+        gprecs['fastest'] = self.blockdata.fastest
+        if self.submitted_remote.nomine_gp:
+            gprecs['nomine'] = self.submitted_remote.nomine_gp.astype(float)
+        else:
+            gprecs['nomine'] = self.submitted_remote.nomine_gp
+
+        for rec in [safelow, average, gprecs['fast'], gprecs['fastest']]:
+            if np.isnan(rec):
+                rec = MAX_GP
+            
+        
         array30m.append(safelow)
         array5m.append(average)
 
-        gprecs = {}
+        
         gprecs['safeLow'] = np.percentile(array30m, 50)
         gprecs['average'] = np.percentile(array5m, 50)
-        gprecs['fast'] = self.blockdata.fast
-        if np.isnan(gprecs['fast']):
-            gprecs['fast'] = MAX_GP
-        gprecs['fastest'] = self.blockdata.fastest
-        if np.isnan(gprecs['fastest']):
-            gprecs['fastest'] = MAX_GP
-
+        
         if (gprecs['fast'] < gprecs['average']):
             gprecs['fast'] = gprecs['average']
 
         if (gprecs['safeLow'] > gprecs['average']):
             gprecs['safeLow'] = gprecs['average']
 
-        gprecs['safeLowWait'] = get_wait(gprecs['safeLow'])
-        gprecs['avgWait'] = get_wait(gprecs['average'])
-
-        gprecs['fastWait'] = get_wait(gprecs['fast'])
-        gprecs['fastestWait'] = get_wait(gprecs['fastest'])
         gprecs['block_time'] = block_time
         gprecs['blockNum'] = block
         gprecs['speed'] = speed
@@ -677,11 +704,24 @@ class GasPriceReport():
         self.array5m = array5m
         self.array30m = array30m
 
+    def get_wait(self, prediction_table):
+        def lookup(gasprice):
+            try:
+                wait =  prediction_table.at[prediction_table.index[gasprice], 'expectedTime']
+            except Exception as e :
+                print(e)
+            wait = round(wait, 1)
+            return float(wait)
+        self.gprecs['safeLowWait'] = lookup(self.gprecs['safeLow'])
+        self.gprecs['avgWait'] = lookup(self.gprecs['average'])
+        self.gprecs['fastWait'] = lookup(self.gprecs['fast'])
+        self.gprecs['fastestWait'] = lookup(self.gprecs['fastest'])
 
     def write_to_json(self):
         """write json data"""
         global exporter
         try:
+            print(self.gprecs)
             exporter.write_json('ethgasAPI', self.gprecs)
         except Exception as e:
             console.error("write_to_json: Exception caught: " + str(e))
