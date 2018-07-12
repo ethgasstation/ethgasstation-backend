@@ -148,7 +148,7 @@ class TxpoolContainer ():
         current_block = web3.eth.blockNumber
         try:
             console.info("getting txpool hashes at block " +str(current_block) + " ...")
-            hashlist = self._get_pending_tx()
+            hashlist = self._get_pending_tx_hashes()
             txpool_current = pd.DataFrame(index = hashlist)
             txpool_current['block'] = current_block
             console.info("done. length = " +str(len(txpool_current)))
