@@ -8,6 +8,7 @@ v0 API, and similar legacy services.
 
 import json
 import os
+import numpy as np
 from hexbytes import HexBytes
 from urllib.parse import urlparse
 
@@ -74,10 +75,14 @@ class JSONExporter(object):
             mixed = json.loads(mixed)
         elif isinstance(mixed, dict):
             # web3 3.x -> 4.x: bytes() is not serializable
-            # first-degree HexBytes check as a final trap
+            # also pandas sometimes returns int64
+            # first-degree HexBytes and np.int64 check as a final trap
             for attr, value in mixed.items():
                 if isinstance(value, HexBytes):
                     mixed[attr] = value.hex().lower()
+                elif isinstance(value, np.int64):
+                    mixed[attr] = int(value)
+
         return json.dumps(mixed)
 
     def _connect_redis(self, force_reconnect=False):
