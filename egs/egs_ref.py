@@ -122,6 +122,7 @@ class TxpoolContainer ():
     def _get_pending_tx_hashes(self, try_methods=True):
         """gets pending transaction hashes and autodetects method for doing so"""
         try:
+            hashlist = []
             if self.pending_method == 'geth':
                 txpoolcontent = web3.txpool.content
                 txpoolpending = txpoolcontent['pending']
@@ -144,7 +145,6 @@ class TxpoolContainer ():
     
     def append_current_txp(self):
         """gets list of all txhash in txpool at block and appends to dataframe"""
-        hashlist = []
         current_block = web3.eth.blockNumber
         try:
             console.info("getting txpool hashes at block " +str(current_block) + " ...")
