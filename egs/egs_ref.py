@@ -117,6 +117,30 @@ class TxpoolContainer ():
         self.txpool_block = pd.DataFrame() # txp data at block
         self.txpool_by_gp = pd.DataFrame() # txp data grouped by gp
         self.got_txpool = False
+        self.pending_method = 'geth' # pending tx acquisition method ('geth' or 'parity')
+
+    def _get_pending_tx_hashes(self, try_methods=True):
+        """gets pending transaction hashes and autodetects method for doing so"""
+        try:
+            if self.pending_method == 'geth':
+                txpoolcontent = web3.txpool.content
+                txpoolpending = txpoolcontent['pending']
+                for tx_sequence in txpoolpending.values():
+                    for tx_obj in tx_sequence.values():
+                        hashlist.append(tx_obj['hash'])
+                return hashlist
+            elif self.pending_method == 'parity':
+                txpoolpending = web3.manager.request_blocking('parity_pendingTransactions',[])
+                for tx_obj in txpoolpending:
+                    hashlist.append(tx_obj['hash'])
+                return hashlist
+        except ValueError as ve:
+            if ve.args[0]['code']==-32601: # method not found
+                if try_methods:
+                    self.pending_method = {'geth':'parity','parity':'geth'}[self.pending_method]
+                    console.info('Switching pending tx acquisition method to '+self.pending_method)
+                    return self._get_pending_tx_hashes(False)
+            raise
     
     def append_current_txp(self):
         """gets list of all txhash in txpool at block and appends to dataframe"""
@@ -124,11 +148,7 @@ class TxpoolContainer ():
         current_block = web3.eth.blockNumber
         try:
             console.info("getting txpool hashes at block " +str(current_block) + " ...")
-            txpoolcontent = web3.txpool.content
-            txpoolpending = txpoolcontent['pending']
-            for tx_sequence in txpoolpending.values():
-                for tx_obj in tx_sequence.values():
-                    hashlist.append(tx_obj['hash'])
+            hashlist = self._get_pending_tx()
             txpool_current = pd.DataFrame(index = hashlist)
             txpool_current['block'] = current_block
             console.info("done. length = " +str(len(txpool_current)))
