@@ -35,7 +35,7 @@ class TxBatch(object):
         idx = 0
         for tx_hash in hex_list:
             req = {
-                'json-rpc': '2.0',
+                'jsonrpc': '2.0',
                 'method': method,
                 'params': [ tx_hash ],
                 'id': idx
