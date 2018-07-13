@@ -22,6 +22,15 @@ def load_settings(settings_file=None):
     """Get settings from INI configuration file."""
     parser_instance = configparser.ConfigParser()
     parser_instance.read(settings_file)
+
+    # legacy support for [geth] config section, alternatively [parity]
+    # the new name is [rpc]
+    if 'rpc' not in parser_instance:
+        if 'geth' in parser_instance:
+            parser_instance['rpc'] = parser_instance['geth']
+        elif 'parity' in parser_instance:
+            parser_instance['rpc'] = parser_instance['parity']
+
     settings_loaded = True
 
 def get_setting(section, name):
@@ -64,11 +73,11 @@ def get_settings_filepath():
 def get_web3_provider(protocol=None, hostname=None, port=None):
     """Get Web3 instance. Supports websocket, http, ipc."""
     if protocol is None:
-        protocol = get_setting('geth', 'protocol')
+        protocol = get_setting('rpc', 'protocol')
     if hostname is None:
-        hostname = get_setting('geth', 'hostname')
+        hostname = get_setting('rpc', 'hostname')
     if port is None:
-        port = get_setting('geth', 'port')
+        port = get_setting('rpc', 'port')
 
     if protocol == 'ws' or protocol == 'wss':
         return Web3(

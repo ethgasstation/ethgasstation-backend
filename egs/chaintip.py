@@ -2,8 +2,8 @@
 Chaintip Detector
 
 Queries third-party services for the tip of the chain. This can be used
-to keep ETH Gas Station in sync, and to throw out data if our geth node
-is reporting bad data to us.
+to keep ETH Gas Station in sync, and to throw out data if our geth/parity
+node is reporting bad data to us.
 """
 
 import json
@@ -35,7 +35,7 @@ class Chaintip(object):
         self.console = Output()
 
         try:
-            sync_tip_with = get_setting('geth', 'sync_tip_with')
+            sync_tip_with = get_setting('rpc', 'sync_tip_with')
         except KeyError:
             sync_tip_with = False
 
@@ -64,7 +64,7 @@ class Chaintip(object):
             if best == 0:
                 return -1
         else:
-            # just get this from our geth
+            # just get this from our geth/parity
             try:
                 return self.web3.eth.blockNumber
             except:

@@ -101,7 +101,7 @@ class TxBatch(object):
             return False
     
     def _setRequestFromProvider(self, web3_provider):
-        """Get the Geth HTTP endpoint URI from an instantiated Web3 provider."""
+        """Get the RPC HTTP endpoint URI from an instantiated Web3 provider."""
         for provider in web3_provider.providers:
             if isinstance(provider, HTTPProvider):
                 self.endpoint_uri = provider.endpoint_uri
