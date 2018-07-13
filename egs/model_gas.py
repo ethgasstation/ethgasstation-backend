@@ -8,7 +8,6 @@ import sys
 import subprocess
 import urllib
 
-import mysql.connector
 import numpy as np 
 import pandas as pd
 
@@ -16,27 +15,14 @@ import statsmodels.api as sm
 
 from sqlalchemy import create_engine 
 from patsy import dmatrices
+import settings
 
-import egs.settings
+settings.load_settings()
+connstr = settings.get_mysql_connstr()
+engine = create_engine(connstr, echo=False)
+conn = engine.connect()
 
-settings_file = egs.settings.get_settings_filepath(os.path.dirname(os.path.realpath(__file__)))
-egs.settings.load_settings(settings_file)
-
-# TODO: choose one mysql or the other
-cnx = mysql.connector.connect(
-    user=get_setting('mysql', 'username'),
-    password=get_setting('mysql', 'password'),
-    host=get_setting('mysql', 'hostname'),
-    port=get_setting('mysql', 'port'),
-    database=get_setting('mysql', 'database'))
-cursor = cnx.cursor()
-engine = egs.settings.get_mysql_connstr()
-query = ("SELECT * FROM minedtx2")
-cursor.execute(query)
-head = cursor.column_names
-predictData = pd.DataFrame(cursor.fetchall())
-predictData.columns = head
-cursor.close()
+predictData = pd.read_sql('SELECT * from alltx', con=engine)
 
 
 #predictData = predictData.combine_first(postedData)
@@ -73,11 +59,9 @@ predictData['gasCat5'] = (predictData['gas_offered']>=quantiles[.99]).astype(int
 
 
 
-predictData['hpa2'] = predictData['hashpower_accepting']*predictData['hashpower_accepting']
 
 
-
-y, X = dmatrices('confirmTime ~ hashpower_accepting + highgas2 + tx_atabove', data = predictData, return_type = 'dataframe')
+y, X = dmatrices('confirmTime ~ hashpower_accepting + tx_atabove', data = predictData, return_type = 'dataframe')
 
 print(y[:5])
 print(X[:5])
@@ -91,8 +75,5 @@ y['predict'] = results.predict()
 y['round_gp_10gwei'] = predictData['round_gp_10gwei']
 y['hashpower_accepting'] = predictData['hashpower_accepting']
 y['tx_atabove'] = predictData['tx_atabove']
-y['tx_unchained'] = predictData['tx_unchained']
-y['highgas2'] = predictData['highgas2']
-
 
 print(y)
