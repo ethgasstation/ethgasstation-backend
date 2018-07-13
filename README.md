@@ -2,7 +2,7 @@
 #### an adaptive gas price oracle for the ethereum blockchain
 
 This is the backend for [ethgasstation](https://ethgasstation.info), written in
-Python 3. This python script is designed to monitor a local Geth node. It will
+Python 3. This python script is designed to monitor a local Geth or Parity node. It will
 record data about pending and mined transactions, including the transactions in
 your node's transaction pool. Its main purpose is to generate adaptive gas price
 estimates that enable you to know what gas price to use depending on your
@@ -18,7 +18,7 @@ gas price that gives the desired confirmation time assuming standard gas offered
 
 ### Installation and Prerequisites
 
-ethgasstation requires **Python 3**, **MySQL/MariaDB**, and **Geth**. You will
+ethgasstation requires **Python 3**, **MySQL/MariaDB**, and **Geth**/**Parity**. You will
 need to modify `settings.conf` for your specific environment; some (insecure)
 defaults are set to get you up and running.
 
@@ -63,5 +63,5 @@ It is also possible to run the oracle as a Docker container.
 
 In the Docker service, the Python script will dump data to JSON on Redis.
 You will need to update your settings.conf to the internal hostnames
-available for MariaDB, Redis, and geth, respectively within your
+available for MariaDB, Redis, and geth or parity, respectively within your
 infrastructure.
