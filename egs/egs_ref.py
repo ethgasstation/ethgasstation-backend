@@ -688,7 +688,7 @@ class GasPriceReport():
         gprecs = {}
         gprecs['fast'] = self.blockdata.fast
         gprecs['fastest'] = self.blockdata.fastest
-        if self.submitted_remote.nomine_gp:
+        if self.submitted_remote.nomine_gp and type(self.submitted_remote.nomine_gp) is not float:
             gprecs['nomine'] = self.submitted_remote.nomine_gp.astype(float)
         else:
             gprecs['nomine'] = self.submitted_remote.nomine_gp
