@@ -70,7 +70,7 @@ def get_settings_filepath():
             return candidate_location
     raise FileNotFoundError("Cannot find EthGasStation settings file.")
 
-def get_web3_provider(protocol=None, hostname=None, port=None):
+def get_web3_provider(protocol=None, hostname=None, port=None, timeout=None):
     """Get Web3 instance. Supports websocket, http, ipc."""
     if protocol is None:
         protocol = get_setting('rpc', 'protocol')
@@ -78,26 +78,39 @@ def get_web3_provider(protocol=None, hostname=None, port=None):
         hostname = get_setting('rpc', 'hostname')
     if port is None:
         port = get_setting('rpc', 'port')
+    if timeout is None:
+        try:
+            timeout = int(get_setting('rpc', 'timeout'))
+        except KeyError:
+            timeout = 15 # default timeout is 15 seconds
 
     if protocol == 'ws' or protocol == 'wss':
-        return Web3(
-            WebsocketProvider(
-              "%s://%s:%s" % (
-                protocol, 
-                hostname, 
-                port)))
+        provider = WebsocketProvider(
+            "%s://%s:%s" % (
+                protocol,
+                hostname,
+                port),
+            websocket_kwargs={'timeout':timeout}
+        )
+        provider.egs_timeout = timeout
+        return Web3(provider)
     elif protocol == 'http' or protocol == 'https':
-        return Web3(
-            HTTPProvider(
-                "%s://%s:%s" % (
-                    protocol,
-                    hostname,
-                    port)))
+        provider = HTTPProvider(
+            "%s://%s:%s" % (
+                protocol,
+                hostname,
+                port),
+            request_kwargs={'timeout':timeout}
+        )
+        provider.egs_timeout = timeout
+        return Web3(provider)
     elif protocol == 'ipc':
-        return Web3(
-            IPCProvider(
-                hostname
-            ))
+        provider = IPCProvider(
+            hostname,
+            timeout=timeout
+        )
+        provider.egs_timeout = timeout
+        return Web3(provider)
     else:
         raise Exception("Can't set web3 provider type %s" % str(protocol))
 

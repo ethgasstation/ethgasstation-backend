@@ -90,7 +90,7 @@ class TxBatch(object):
     def _postBatch(self, post_data_object):
         """Make a batch JSON-RPC request to the geth endpoint."""
         try:
-            res = requests.post(self.endpoint_uri, json=post_data_object, timeout=5)
+            res = requests.post(self.endpoint_uri, json=post_data_object, timeout=self.timeout)
             if res.status_code == 200:
                 return res.json()
             else:
@@ -105,6 +105,7 @@ class TxBatch(object):
         for provider in web3_provider.providers:
             if isinstance(provider, HTTPProvider):
                 self.endpoint_uri = provider.endpoint_uri
+                self.timeout = provider.egs_timeout
 
     def _castAttributeDict(self, maybe_dict):
         """Return an AttributeDict as is provided by web3 middleware."""
