@@ -22,6 +22,15 @@ def load_settings(settings_file=None):
     """Get settings from INI configuration file."""
     parser_instance = configparser.ConfigParser()
     parser_instance.read(settings_file)
+
+    # legacy support for [geth] config section, alternatively [parity]
+    # the new name is [rpc]
+    if 'rpc' not in parser_instance:
+        if 'geth' in parser_instance:
+            parser_instance['rpc'] = parser_instance['geth']
+        elif 'parity' in parser_instance:
+            parser_instance['rpc'] = parser_instance['parity']
+
     settings_loaded = True
 
 def get_setting(section, name):
@@ -61,34 +70,47 @@ def get_settings_filepath():
             return candidate_location
     raise FileNotFoundError("Cannot find EthGasStation settings file.")
 
-def get_web3_provider(protocol=None, hostname=None, port=None):
+def get_web3_provider(protocol=None, hostname=None, port=None, timeout=None):
     """Get Web3 instance. Supports websocket, http, ipc."""
     if protocol is None:
-        protocol = get_setting('geth', 'protocol')
+        protocol = get_setting('rpc', 'protocol')
     if hostname is None:
-        hostname = get_setting('geth', 'hostname')
+        hostname = get_setting('rpc', 'hostname')
     if port is None:
-        port = get_setting('geth', 'port')
+        port = get_setting('rpc', 'port')
+    if timeout is None:
+        try:
+            timeout = int(get_setting('rpc', 'timeout'))
+        except KeyError:
+            timeout = 15 # default timeout is 15 seconds
 
     if protocol == 'ws' or protocol == 'wss':
-        return Web3(
-            WebsocketProvider(
-              "%s://%s:%s" % (
-                protocol, 
-                hostname, 
-                port)))
+        provider = WebsocketProvider(
+            "%s://%s:%s" % (
+                protocol,
+                hostname,
+                port),
+            websocket_kwargs={'timeout':timeout}
+        )
+        provider.egs_timeout = timeout
+        return Web3(provider)
     elif protocol == 'http' or protocol == 'https':
-        return Web3(
-            HTTPProvider(
-                "%s://%s:%s" % (
-                    protocol,
-                    hostname,
-                    port)))
+        provider = HTTPProvider(
+            "%s://%s:%s" % (
+                protocol,
+                hostname,
+                port),
+            request_kwargs={'timeout':timeout}
+        )
+        provider.egs_timeout = timeout
+        return Web3(provider)
     elif protocol == 'ipc':
-        return Web3(
-            IPCProvider(
-                hostname
-            ))
+        provider = IPCProvider(
+            hostname,
+            timeout=timeout
+        )
+        provider.egs_timeout = timeout
+        return Web3(provider)
     else:
         raise Exception("Can't set web3 provider type %s" % str(protocol))
 
