@@ -409,12 +409,20 @@ class AllTxContainer():
         mined_block_num = self.process_block - 3
         block_obj = web3.eth.getBlock(mined_block_num, True)
         miner = block_obj.miner
+        tx_hash_list = []
         for transaction in block_obj.transactions:
             clean_tx = CleanTx(transaction, None, None, miner)
             clean_tx.hash = clean_tx.hash.hex()
+            tx_hash_list.append(clean_tx.hash)
             block_df = block_df.append(clean_tx.to_dataframe(), ignore_index = False)
         block_df['time_mined'] = block_obj.timestamp
-
+        minedtxs = TxBatch(web3)
+        try: 
+            results = minedtxs.batchRequest('eth_getTransactionReceipt', tx_hash_list)
+            for txhash, txobject in results.items():
+                block_df.loc[txhash, 'gasused'] = txobject.gasUsed
+        except Exception as e:
+            print (e)
         #add mined data to dataframe
         mined_blockdf_seen = block_df[block_df.index.isin(self.df.index)]
         console.info('num mined in ' + str(mined_block_num)+ ' = ' + str(len(block_df)))

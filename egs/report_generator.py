@@ -145,11 +145,11 @@ class SummaryReport():
             '0xb1690c08e213a35ed9bab7b318de14420fb57d8c': 'Cryptokitties Auction',
             '0x2a0c0dbecc7e4d658f48e01e3fa353f44050c208': 'IDEX'
         }
-        gasguzz = self.tx_df.groupby('to_address').count()
-        gasguzz = gasguzz.sort_values('block_mined', ascending = False)
-        tottx = len(self.tx_df)
-        gasguzz['pcttot'] = gasguzz['block_mined']/tottx*100
-        gasguzz = gasguzz.head(n=10)
+        gasguzz = self.tx_df.groupby('to_address').sum()
+        gasguzz = gasguzz.sort_values('gasused', ascending = False)
+        totgas = self.tx_df['gasused'].sum()
+        gasguzz['pcttot'] = gasguzz['gasused']/totgas*100
+        gasguzz = gasguzz.head(n=100)
         for index, row in gasguzz.iterrows():
             if index in gg.keys():
                 gasguzz.loc[index, 'ID'] = gg[index]
