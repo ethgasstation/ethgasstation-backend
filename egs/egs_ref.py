@@ -558,6 +558,8 @@ class RecentlySubmittedTxDf():
         safe_gp = safe.index.min()
         nomine= df.loc[(df['mined'] == 0) & (df.index < safe_gp)]
         nomine_gp = nomine.index.max()
+        if not nomine_gp < MAX_GP:
+            nomine_gp = None
         self.safe = safe_gp
         self.nomine_gp = nomine_gp
 
@@ -700,6 +702,8 @@ class GasPriceReport():
             gprecs['nomine'] = self.submitted_remote.nomine_gp.astype(float)
         else:
             gprecs['nomine'] = self.submitted_remote.nomine_gp
+        
+
 
         for rec in [safelow, average, gprecs['fast'], gprecs['fastest']]:
             if np.isnan(rec):
