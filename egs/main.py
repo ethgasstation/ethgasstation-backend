@@ -74,7 +74,7 @@ def master_control(args):
             #keep dataframes/mysql from getting too large
             if ((alltx.process_block % 50) == 0):
                 blockdata.prune(alltx.process_block)
-                alltx.prune()
+                alltx.prune(txpool)
                 txpool.prune(alltx.process_block) 
             
             #update counter
