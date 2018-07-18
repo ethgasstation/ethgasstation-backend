@@ -94,18 +94,6 @@ class CleanBlock():
         data = {0:{'block_number':self.block_number, 'gasused':self.gasused, 'miner':self.miner, 'gaslimit':self.gaslimit, 'numtx':self.numtx, 'blockhash':self.blockhash, 'time_mined':self.time_mined, 'mingasprice':self.mingasprice, 'uncsreported':self.uncsreported, 'blockfee':self.blockfee, 'main':self.main, 'uncle':self.uncle, 'speed':self.speed, 'includedblock':self.includedblock}}
         return pd.DataFrame.from_dict(data, orient='index')
 
-def predict(row):
-    """predicts block wait time according to model coefs from model params"""
-    try:
-        sum1 = (INTERCEPT + (row['hashpower_accepting'] * HPA_COEF))
-        prediction = np.exp(sum1)
-        if prediction < 2:
-            prediction = 2
-        return np.round(prediction, decimals=2)
-    except Exception as e:
-        console.error("predict: Exception caught: " + str(e))
-        return np.nan
-
 def make_gp_index():
     df = pd.DataFrame(index=range(0,5001))
     return (df)
@@ -448,7 +436,7 @@ class AllTxContainer():
         df = df.fillna(0)
         self.pctmined_gp_last100 = df
     
-    def update_txblock(self, txpool_block, blockdata, predictiontable, gprecs):
+    def update_txblock(self, txpool_block, blockdata, predictiontable, gprecs, nomine=None):
         '''
         updates transactions at block with calc values from prediction table
         '''
@@ -460,7 +448,7 @@ class AllTxContainer():
         txpool_block = txpool_block.join(predictiontable.predictiondf, how='left', on='round_gp_10gwei')
         txpool_block['safelow'] = gprecs['safeLow']
         txpool_block['average'] = gprecs['average']
-        txpool_block['nomine'] = gprecs['nomine']
+        txpool_block['nomine'] = nomine
         console.info("updating " + str(len(txpool_block)) + " transactions")
         self.df = self.df.combine_first(txpool_block)
         
@@ -492,11 +480,16 @@ class AllTxContainer():
         console.info("wrote " + str(length) + " transactions to alltx.")
 
     
-    def prune(self):
+    def prune(self, txpool):
         """keep dataframes and databases from getting too big"""
         deleteBlock_mined = self.process_block - 1500
         deleteBlock_posted = self.process_block - 2500
         self.df = self.df.loc[((self.df['block_mined'].isnull()) & (self.df['block_posted'] > deleteBlock_posted)) | (self.df['block_mined'] > deleteBlock_mined)]
+        if txpool.got_txpool:
+            self.df['txpool_current'] = self.df.index.isin(self.txpool.txpool_block.index).astype(int)
+            self.df = self.df.loc[((self.df['block_mined'].isnull()) & (self.df['txpool_current'] == 1)) | (self.df['block_mined'] > deleteBlock_mined)]
+            self.df = self.df.drop('txpool_current', axis=1)
+
 
     
 
@@ -560,6 +553,8 @@ class RecentlySubmittedTxDf():
         nomine_gp = nomine.index.max()
         if not nomine_gp < MAX_GP:
             nomine_gp = None
+        if not safe_gp < MAX_GP:
+            safe_gp = None
         self.safe = safe_gp
         self.nomine_gp = nomine_gp
 
@@ -610,14 +605,14 @@ class PredictionTable():
 
         self.predictiondf = predictTable
     
-    def get_predicted_wait(self, gpreport):
+    def get_predicted_wait(self, gpreport, nomine):
         """make wait time based on the data"""
         predictTable = self.predictiondf
         avg_timemined = self.blockdata.block_time
         gprecs = gpreport.gprecs
         predictTable['average'] = gprecs['average']
         predictTable['safelow'] = gprecs['safeLow']
-        predictTable['nomine'] = gprecs['nomine']
+        predictTable['nomine'] = nomine
         predictTable['avgdiff'] = (predictTable.index >= predictTable['average']).astype(int)
         predictTable['intercept'] = INTERCEPT 
         predictTable['hpa_coef'] = HPA_COEF
@@ -626,13 +621,10 @@ class PredictionTable():
         predictTable['int2'] = INTERCEPT2
         predictTable['hpa_coef2'] = HPA_COEF2
 
-        
-        
-        
-        if gprecs['nomine']:
+        if nomine:
             predictTable['sum'] = (predictTable['intercept'] + (predictTable['hashpower_accepting'] * predictTable['hpa_coef'])  + (predictTable['avgdiff'] * predictTable['avgdiff_coef']) + (predictTable['tx_atabove'] * predictTable['tx_atabove_coef']))
             predictTable['expectedWait'] = predictTable['sum'].apply(lambda x: np.exp(x))
-            predictTable.loc[predictTable.index <= gprecs['nomine'], 'expectedWait'] = 1000
+            predictTable.loc[predictTable.index <= nomine, 'expectedWait'] = 1000
         else:
             predictTable['sum'] = (predictTable['int2'] + (predictTable['hashpower_accepting'] * predictTable['hpa_coef2']))
             predictTable['expectedWait'] = predictTable['sum'].apply(lambda x: np.exp(x))
@@ -698,30 +690,19 @@ class GasPriceReport():
         gprecs = {}
         gprecs['fast'] = self.blockdata.fast
         gprecs['fastest'] = self.blockdata.fastest
-        if self.submitted_remote.nomine_gp and type(self.submitted_remote.nomine_gp) is not float:
-            gprecs['nomine'] = self.submitted_remote.nomine_gp.astype(float)
-        else:
-            gprecs['nomine'] = self.submitted_remote.nomine_gp
-        
-
 
         for rec in [safelow, average, gprecs['fast'], gprecs['fastest']]:
             if np.isnan(rec):
                 rec = MAX_GP
-            
-        
+             
         array30m.append(safelow)
         array5m.append(average)
 
-        
         gprecs['safeLow'] = np.percentile(array30m, 50)
         gprecs['average'] = np.percentile(array5m, 50)
         
         if (gprecs['fast'] < gprecs['average']):
             gprecs['fast'] = gprecs['average']
-
-        if (gprecs['safeLow'] > gprecs['average']):
-            gprecs['safeLow'] = gprecs['average']
 
         gprecs['block_time'] = block_time
         gprecs['blockNum'] = block
@@ -735,15 +716,32 @@ class GasPriceReport():
         self.gprecs = gprecs
         self.array5m = array5m
         self.array30m = array30m
-
+    
     def get_wait(self, prediction_table):
+        safelow_predict = prediction_table.loc[prediction_table['expectedTime'] < 25].index.min()
+        console.info('safeLow predict: ' + str(safelow_predict))
+        avg_predict = prediction_table.loc[prediction_table['expectedTime'] < 4].index.min()
+        console.info('avg predict: ' + str(avg_predict))
+
+        if self.gprecs['safeLow'] < safelow_predict:
+            self.gprecs['safeLow'] = safelow_predict
+        
+        if self.gprecs['average'] < avg_predict:
+            self.gprecs['average'] = avg_predict
+        
+        if self.gprecs['safeLow'] > self.gprecs['average']:
+            self.gprecs['safeLow'] = self.gprecs['average']
+        
         def lookup(gasprice):
-            try:
+
+            if gasprice:
                 wait =  prediction_table.at[prediction_table.index[gasprice], 'expectedTime']
-            except Exception as e :
-                print(e)
-            wait = round(wait, 1)
+            if wait:
+                wait = round(wait, 1)
+            else:
+                wait = None
             return float(wait)
+
         self.gprecs['safeLowWait'] = lookup(self.gprecs['safeLow'])
         self.gprecs['avgWait'] = lookup(self.gprecs['average'])
         self.gprecs['fastWait'] = lookup(self.gprecs['fast'])

@@ -55,10 +55,10 @@ def master_control(args):
             array30m = gaspricereport.array30m 
             #make predicted wait times
             if txpool.got_txpool:
-                predictiontable.get_predicted_wait(gaspricereport)
+                predictiontable.get_predicted_wait(gaspricereport, submitted_30mago.nomine_gp)
                 gaspricereport.get_wait(predictiontable.predictiondf)
             #updates tx submitted at current block with data from predictiontable, gpreport- this is for storing in mysql for later optional stats models.
-            alltx.update_txblock(txpool.txpool_block, blockdata, predictiontable, gaspricereport.gprecs) 
+            alltx.update_txblock(txpool.txpool_block, blockdata, predictiontable, gaspricereport.gprecs, submitted_30mago.nomine_gp) 
         
             #make report if enabled
             if report_option is True:

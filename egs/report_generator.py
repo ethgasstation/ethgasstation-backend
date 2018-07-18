@@ -149,7 +149,7 @@ class SummaryReport():
         gasguzz = gasguzz.sort_values('gasused', ascending = False)
         totgas = self.tx_df['gasused'].sum()
         gasguzz['pcttot'] = gasguzz['gasused']/totgas*100
-        gasguzz = gasguzz.head(n=100)
+        gasguzz = gasguzz[['gasused', 'pcttot']].head(n=100)
         for index, row in gasguzz.iterrows():
             if index in gg.keys():
                 gasguzz.loc[index, 'ID'] = gg[index]
