@@ -400,6 +400,8 @@ class AllTxContainer():
         tx_hash_list = []
         for transaction in block_obj.transactions:
             clean_tx = CleanTx(transaction, None, None, miner)
+            if miner == clean_tx.from_address:
+                clean_tx.round_gp_10gwei = None
             clean_tx.hash = clean_tx.hash.hex()
             tx_hash_list.append(clean_tx.hash)
             block_df = block_df.append(clean_tx.to_dataframe(), ignore_index = False)
@@ -486,7 +488,7 @@ class AllTxContainer():
         deleteBlock_posted = self.process_block - 2500
         self.df = self.df.loc[((self.df['block_mined'].isnull()) & (self.df['block_posted'] > deleteBlock_posted)) | (self.df['block_mined'] > deleteBlock_mined)]
         if txpool.got_txpool:
-            self.df['txpool_current'] = self.df.index.isin(self.txpool.txpool_block.index).astype(int)
+            self.df['txpool_current'] = self.df.index.isin(txpool.txpool_block.index).astype(int)
             self.df = self.df.loc[((self.df['block_mined'].isnull()) & (self.df['txpool_current'] == 1)) | (self.df['block_mined'] > deleteBlock_mined)]
             self.df = self.df.drop('txpool_current', axis=1)
 
@@ -670,8 +672,6 @@ class GasPriceReport():
         prediction_table = self.predictiontable
         block_time = self.blockdata.block_time
         speed = self.blockdata.speed
-        array5m = self.array5m
-        array30m = self.array30m
         block = self.block
 
         if self.submitted_remote.safe:
@@ -690,16 +690,9 @@ class GasPriceReport():
         gprecs = {}
         gprecs['fast'] = self.blockdata.fast
         gprecs['fastest'] = self.blockdata.fastest
-
-        for rec in [safelow, average, gprecs['fast'], gprecs['fastest']]:
-            if np.isnan(rec):
-                rec = MAX_GP
-             
-        array30m.append(safelow)
-        array5m.append(average)
-
-        gprecs['safeLow'] = np.percentile(array30m, 50)
-        gprecs['average'] = np.percentile(array5m, 50)
+        gprecs['safeLow'] = safelow
+        gprecs['average'] = average
+        
         
         if (gprecs['fast'] < gprecs['average']):
             gprecs['fast'] = gprecs['average']
@@ -708,14 +701,8 @@ class GasPriceReport():
         gprecs['blockNum'] = block
         gprecs['speed'] = speed
 
-        if len(array5m) > 20:
-            array5m.pop(0)
-        if len(array30m) > 20:
-            array30m.pop(0)
-        
         self.gprecs = gprecs
-        self.array5m = array5m
-        self.array30m = array30m
+    
     
     def get_wait(self, prediction_table):
         safelow_predict = prediction_table.loc[prediction_table['expectedTime'] < 25].index.min()
@@ -732,9 +719,25 @@ class GasPriceReport():
         if self.gprecs['safeLow'] > self.gprecs['average']:
             self.gprecs['safeLow'] = self.gprecs['average']
         
+        self.array30m.append(self.gprecs['safeLow'])
+        self.array5m.append(self.gprecs['average'])
+
+        self.gprecs['safeLow'] = np.percentile(self.array30m, 50)
+        self.gprecs['average'] = np.percentile(self.array5m, 50)
+
+        if len(self.array5m) > 11:
+            self.array5m.pop(0)
+        if len(self.array30m) > 11:
+            self.array30m.pop(0)
+        
+        for rec, value in self.gprecs.items():
+            if np.isnan(value):
+                value = None
+
         def lookup(gasprice):
 
             if gasprice:
+                gasprice = int(gasprice)
                 wait =  prediction_table.at[prediction_table.index[gasprice], 'expectedTime']
             if wait:
                 wait = round(wait, 1)

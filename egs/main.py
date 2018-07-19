@@ -39,24 +39,23 @@ def master_control(args):
             blockdata.analyze_last200blocks(alltx.process_block) 
              # create summary stats for transactions in last 100 blocks
             alltx.analyzetx_last100blocks()
+            #stats for tx in txpool
+            txpool.make_txpool_block(alltx.process_block, alltx.df) 
             #stats for transactions submitted ~ 5m ago
             submitted_5mago = RecentlySubmittedTxDf('5mago', alltx.process_block, 10, 50, 2000000, alltx.df, txpool) 
             #stats for transactions submitted ~ 30m ago
             submitted_30mago = RecentlySubmittedTxDf('30mago', alltx.process_block, 60, 100, 2000000, alltx.df, txpool) 
-            #stats for tx in txpool
-            txpool.make_txpool_block(alltx.process_block, alltx.df) 
             #make a prediction table by gas price
             predictiontable = PredictionTable(blockdata, alltx, txpool, submitted_5mago.df, submitted_30mago.df) 
             #make the gas price report
             gaspricereport = GasPriceReport(predictiontable.predictiondf, blockdata, submitted_5mago, submitted_30mago, array5m, array30m, alltx.process_block) 
+            #make predicted wait times
+            predictiontable.get_predicted_wait(gaspricereport, submitted_30mago.nomine_gp)
+            gaspricereport.get_wait(predictiontable.predictiondf)
             #hold recent avg gp rec
             array5m = gaspricereport.array5m 
             #hold recent safelow gp rec
             array30m = gaspricereport.array30m 
-            #make predicted wait times
-            if txpool.got_txpool:
-                predictiontable.get_predicted_wait(gaspricereport, submitted_30mago.nomine_gp)
-                gaspricereport.get_wait(predictiontable.predictiondf)
             #updates tx submitted at current block with data from predictiontable, gpreport- this is for storing in mysql for later optional stats models.
             alltx.update_txblock(txpool.txpool_block, blockdata, predictiontable, gaspricereport.gprecs, submitted_30mago.nomine_gp) 
         
