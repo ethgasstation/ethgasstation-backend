@@ -547,9 +547,9 @@ class RecentlySubmittedTxDf():
         unsafe = df.loc[(df['total'] >= 5) & (df['pct_remaining'] > 20)]
         unsafe_gp = unsafe.index.max()
         if not np.isnan(unsafe_gp):
-            safe = df.loc[(df['total'] >= 2) & (df['mined'] >=1) & (df['pct_remaining'] < 10) & (df.index > unsafe_gp)]
+            safe = df.loc[(df['total'] >= 2) & (df['pct_mined'] >=1) & (df['pct_remaining'] < 10) & (df.index > unsafe_gp)]
         else:
-            safe = df.loc[(df['total'] >= 2) & (df['mined'] >=1) & (df['pct_remaining'] < 10)]
+            safe = df.loc[(df['total'] >= 2) & (df['pct_mined'] >=1) & (df['pct_remaining'] < 10)]
         safe_gp = safe.index.min()
         nomine= df.loc[(df['mined'] == 0) & (df.index < safe_gp)]
         nomine_gp = nomine.index.max()
