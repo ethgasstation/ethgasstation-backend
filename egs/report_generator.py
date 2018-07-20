@@ -21,7 +21,7 @@ class SummaryReport():
         def get_minedgasprice(row):
             """returns gasprice in gwei if mined otherwise nan"""
             if ~np.isnan(row['block_mined']):
-                return row['round_gp_10gwei']/10
+                return row['round_gp_10gwei']/100
             else:
                 return np.nan
 
@@ -160,9 +160,9 @@ class SummaryReport():
 
         """low gas price tx watch list"""
         recent = self.end_block - 250
-        lowprice = self.tx_df.loc[(self.tx_df['round_gp_10gwei'] < 10) & (self.tx_df['block_posted'] < recent), ['minedGasPrice', 'block_posted', 'mined', 'block_mined', 'round_gp_10gwei']]
+        lowprice = self.tx_df.loc[(self.tx_df['round_gp_10gwei'] < 100) & (self.tx_df['block_posted'] < recent), ['minedGasPrice', 'block_posted', 'mined', 'block_mined', 'round_gp_10gwei']]
         lowprice = lowprice.sort_values(['round_gp_10gwei'], ascending = True).reset_index()
-        lowprice['gasprice'] = lowprice['round_gp_10gwei']/10
+        lowprice['gasprice'] = lowprice['round_gp_10gwei']/100
         grouped_lowprice = lowprice.groupby('gasprice', as_index=False).head(10)
         grouped_lowprice.reset_index(inplace=True)
         self.lowprice = grouped_lowprice.sort_values('gasprice', ascending=False)
@@ -178,6 +178,8 @@ class SummaryReport():
         price_wait.loc[price_wait['minedGasPrice']>=40, 'minedGasPrice'] = 40
         price_wait = price_wait.loc[(price_wait['minedGasPrice']<=10) | (price_wait['minedGasPrice']==20) | (price_wait['minedGasPrice']==21) |(price_wait['minedGasPrice'] == 40), ['minedGasPrice', 'delay2']]
         price_wait.loc[price_wait['minedGasPrice']<1, 'minedGasPrice'] = 0
+        price_wait = price_wait.dropna(axis=0, subset=['minedGasPrice'])
+        price_wait['minedGasPrice'] = price_wait['minedGasPrice'].astype(int)
         price_wait = price_wait.groupby('minedGasPrice').median()/60
         price_wait.reset_index(inplace=True)
         self.price_wait = price_wait

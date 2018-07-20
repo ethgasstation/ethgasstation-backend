@@ -61,7 +61,7 @@ def master_control(args):
         
             #make report if enabled
             if report_option is True:
-                if ((alltx.process_block % 50) == 0):
+                if ((alltx.process_block % 5) == 0):
                     report = SummaryReport(alltx, blockdata)
                     console.info("Writing summary reports for web...")
                     report.write_report()

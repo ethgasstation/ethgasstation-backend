@@ -20,5 +20,5 @@ INTERCEPT2 = 6.9238
 HPA_COEF2 = -0.0670
 
 # Highest gas price tracked
-MAX_GP = 5000
+MAX_GP = 50000
 

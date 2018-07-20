@@ -60,13 +60,17 @@ class CleanTx():
 
     def round_gp(self):
         """Rounds the gas price to gwei"""
-        gp = self.gas_price/1e8
-        if gp >= 1 and gp < 10:
+        gp = self.gas_price/1e7
+        if gp >= 1 and gp < 100:
             gp = int(np.ceil(gp))
-        elif gp >= 10:
+        elif gp >= 100 and gp < 2500:
             gp = gp/10
             gp = int(np.ceil(gp))
             gp = gp*10
+        elif gp >=2500:
+            gp = gp/100
+            gp = int(np.ceil(gp))
+            gp = gp*100
         else:
             gp = 0
         self.round_gp_10gwei = gp
@@ -95,7 +99,7 @@ class CleanBlock():
         return pd.DataFrame.from_dict(data, orient='index')
 
 def make_gp_index():
-    df = pd.DataFrame(index=range(0,5001))
+    df = pd.DataFrame(index=range(0,50001))
     return (df)
 
 class TxpoolContainer ():
@@ -643,7 +647,7 @@ class PredictionTable():
             if (not txpool.txpool_block.empty) & ('total_seen_5m' in self.predictiondf.columns):
                 self.predictiondf.reset_index(inplace=True, drop=False)
                 self.predictiondf.rename(columns={'index':'gasprice'}, inplace=True)
-                self.predictiondf['gasprice'] = self.predictiondf['gasprice']/10
+                self.predictiondf['gasprice'] = self.predictiondf['gasprice']/100
                 if 'total_seen_30m' in self.predictiondf.columns:
                     self.predictiondf = self.predictiondf.loc[(self.predictiondf['total_seen_5m'] > 0) | (self.predictiondf['total_seen_30m'] > 0)]
                 else:
@@ -754,6 +758,10 @@ class GasPriceReport():
         """write json data"""
         global exporter
         try:
+            self.gprecs['safeLow'] /= 10
+            self.gprecs['average'] /= 10 
+            self.gprecs['fast'] /= 10
+            self.gprecs['fastest'] /=10
             print(self.gprecs)
             exporter.write_json('ethgasAPI', self.gprecs)
         except Exception as e:
