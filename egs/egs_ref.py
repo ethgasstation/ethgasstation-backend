@@ -555,7 +555,7 @@ class RecentlySubmittedTxDf():
         unsafe1 = df.loc[(df['total'] >= 5) & (df['pct_remaining'] > 15)].index.max()
         unsafe2 = df.loc[(df['total'] >= 5) & (df['pct_mined'] <= 1)].index.max()
         unsafe3 = df.loc[df['age'] >= unsafe_blockage].index.max()
-        unsafe = np.nanmin([unsafe1, unsafe2, unsafe3])
+        unsafe = np.nanmax([unsafe1, unsafe2, unsafe3])
         print (unsafe1, unsafe2, unsafe3, unsafe)
         safe_gp = df.loc[df.index > unsafe].index.min()
         nomine_gp= df.loc[(df['mined'] == 0) & (df.index < safe_gp)].index.max()
