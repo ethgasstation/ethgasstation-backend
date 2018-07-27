@@ -100,8 +100,8 @@ class CleanBlock():
 
 def make_gp_index():
     gps = [x for x in range(1, 100)]
-    gps.append([x for x in range (100,2500,10)])
-    gps.append([x for x in range (2500, MAX_GP, 100)])
+    gps.extend([x for x in range (100,2500,10)])
+    gps.extend([x for x in range (2500, MAX_GP, 100)])
     df = pd.DataFrame(index=gps)
     return (df)
 
