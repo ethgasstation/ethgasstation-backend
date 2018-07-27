@@ -158,8 +158,11 @@ class TxpoolContainer ():
             txpool_block = txpool_block.drop(['block'], axis=1)
             #merge transaction data for txpool transactions
             #txpool_block only has transactions received by filter
+            alltx.loc[alltx.index.isin(txpool_block.index), 'in_txp'] = block
             txpool_block = txpool_block.join(alltx, how='inner')
             txpool_block = txpool_block.append(alltx.loc[alltx['block_posted']==block])
+            txpool_block['age'] = txpool_block['in_txp'] - txpool_block['block_posted']
+            txpool_block.loc[(txpool_block['chained']==1) | (txpool_block['gas_offered'] > 2000000), 'age'] = None
             txpool_block = txpool_block.drop_duplicates(keep='first')
             console.info('txpool block length ' + str(len(txpool_block)))
             self.got_txpool = True
@@ -171,7 +174,7 @@ class TxpoolContainer ():
         if self.got_txpool:
             self.txpool_block = txpool_block
             #create new df with txpool grouped by gp 
-            self.txpool_by_gp = txpool_block[['gas_price', 'round_gp_10gwei']].groupby('round_gp_10gwei').agg({'gas_price':'count'})
+            self.txpool_by_gp = txpool_block[['gas_price', 'round_gp_10gwei', 'age']].groupby('round_gp_10gwei').agg({'gas_price':'count', 'age':'median'})
             self.txpool_by_gp.rename(columns = {'gas_price':'tx_atabove'}, inplace=True)
             df = make_gp_index()
             #combine tx with gp >=100 gwei
@@ -182,10 +185,10 @@ class TxpoolContainer ():
                 self.txpool_by_gp.loc[MAX_GP, 'tx_atabove'] = high_tx
                 self.txpool_by_gp = self.txpool_by_gp.loc[self.txpool_by_gp.index <= MAX_GP]
             self.txpool_by_gp = self.txpool_by_gp.sort_index(ascending=False)
-            self.txpool_by_gp = self.txpool_by_gp.cumsum()
+            self.txpool_by_gp['tx_atabove'] = self.txpool_by_gp['tx_atabove'].cumsum()
             df = df.join(self.txpool_by_gp, how = 'left')
-            df = df.fillna(method='bfill')
-            df = df.fillna(0)
+            df[['tx_atabove']] = df[['tx_atabove']].fillna(method='bfill')
+            df[['tx_atabove']] = df[['tx_atabove']].fillna(0)
             self.txpool_by_gp = df
         else:
             self.txpool_block = pd.DataFrame()
@@ -462,9 +465,6 @@ class AllTxContainer():
     def write_to_sql(self, txpool):
         """writes to sql, prevent buffer overflow errors"""
         console.info("writing to mysql....this can take awhile")
-        prev_block = self.process_block-1
-        txp = txpool.txpool_df.loc[txpool.txpool_df['block']==prev_block]
-        self.df['txpool'] = self.df.index.isin(txp.index).astype(int)
         self.df.reset_index(inplace=True)
         length = len(self.df)
         chunks = int(np.ceil(length/1000))
@@ -528,7 +528,7 @@ class RecentlySubmittedTxDf():
             recentdf['still_here'] = recentdf.index.isin(current_txpool.index).astype(int)
             recentdf['mined'] = recentdf.index.isin(alltx.index[alltx['block_mined'].notnull()]).astype(int)
             recentdf['round_gp_10gwei'] = recentdf['round_gp_10gwei'].astype(int)
-            recentdf = recentdf[['gas_price', 'round_gp_10gwei', 'still_here', 'mined']].groupby('round_gp_10gwei').agg({'gas_price':'count', 'still_here':'sum', 'mined':'sum'})
+            recentdf = recentdf[['gas_price', 'round_gp_10gwei', 'still_here', 'mined', 'age']].groupby('round_gp_10gwei').agg({'gas_price':'count', 'still_here':'sum', 'mined':'sum', 'age':'median'})
             recentdf.rename(columns={'gas_price':'total'}, inplace=True)
             recentdf['pct_remaining'] = recentdf['still_here'] / recentdf['total'] *100
             recentdf['pct_mined'] = recentdf['mined'] / recentdf['total'] *100
@@ -548,15 +548,17 @@ class RecentlySubmittedTxDf():
     
     def get_txpool(self):
         df = self.df
-        unsafe = df.loc[(df['total'] >= 5) & (df['pct_remaining'] > 20)]
-        unsafe_gp = unsafe.index.max()
-        if not np.isnan(unsafe_gp):
-            safe = df.loc[(df['total'] >= 2) & (df['pct_mined'] >=1) & (df['pct_remaining'] < 10) & (df.index > unsafe_gp)]
-        else:
-            safe = df.loc[(df['total'] >= 2) & (df['pct_mined'] >=1) & (df['pct_remaining'] < 10)]
-        safe_gp = safe.index.min()
-        nomine= df.loc[(df['mined'] == 0) & (df.index < safe_gp)]
-        nomine_gp = nomine.index.max()
+        if self.name is '5mago':
+            unsafe_blockage = 10
+        elif self.name is '30mago':
+            unsafe_blockage = 30
+        unsafe1 = df.loc[(df['total'] >= 5) & (df['pct_remaining'] > 15)].index.max()
+        unsafe2 = df.loc[(df['total'] >= 5) & (df['pct_mined'] <= 1)].index.max()
+        unsafe3 = df.loc[df['age'] >= unsafe_blockage].index.max()
+        unsafe = np.nanmin([unsafe1, unsafe2, unsafe3])
+        print (unsafe1, unsafe2, unsafe3, unsafe)
+        safe_gp = df.loc[df.index > unsafe].index.min()
+        nomine_gp= df.loc[(df['mined'] == 0) & (df.index < safe_gp)].index.max()
         if not nomine_gp < MAX_GP:
             nomine_gp = None
         if not safe_gp < MAX_GP:
@@ -599,6 +601,7 @@ class PredictionTable():
         predictTable['hashpower_accepting2'] = hpower['hashp_pct']
         if self.txpool.got_txpool:
             predictTable['tx_atabove'] = txpool_by_gp['tx_atabove']
+            predictTable['age'] = txpool_by_gp['age']
         if not submitted_5mago.empty:
             predictTable['pct_remaining5m'] = submitted_5mago['pct_remaining']
             predictTable['pct_mined_5m'] =  submitted_5mago['pct_mined']
@@ -726,12 +729,18 @@ class GasPriceReport():
         self.array30m.append(self.gprecs['safeLow'])
         self.array5m.append(self.gprecs['average'])
 
-        self.gprecs['safeLow'] = np.percentile(self.array30m, 50)
-        self.gprecs['average'] = np.percentile(self.array5m, 50)
+        temp_safelow = np.percentile(self.array30m, 50)
+        temp_average = np.percentile(self.array5m, 85)
 
-        if len(self.array5m) > 11:
+        if self.gprecs['safeLow'] < temp_safelow:
+            self.gprecs['safeLow'] = temp_safelow
+        
+        if self.gprecs['average'] < temp_average:
+            self.gprecs['average'] = temp_average
+
+        if len(self.array5m) > 15:
             self.array5m.pop(0)
-        if len(self.array30m) > 11:
+        if len(self.array30m) > 15:
             self.array30m.pop(0)
         
         for rec, value in self.gprecs.items():
