@@ -99,7 +99,10 @@ class CleanBlock():
         return pd.DataFrame.from_dict(data, orient='index')
 
 def make_gp_index():
-    df = pd.DataFrame(index=range(0,50001))
+    gps = [x for x in range(1, 100)]
+    gps.append([x for x in range (100,2500,10)])
+    gps.append([x for x in range (2500, MAX_GP, 100)])
+    df = pd.DataFrame(index=gps)
     return (df)
 
 class TxpoolContainer ():
@@ -730,7 +733,7 @@ class GasPriceReport():
         self.array5m.append(self.gprecs['average'])
 
         temp_safelow = np.percentile(self.array30m, 50)
-        temp_average = np.percentile(self.array5m, 85)
+        temp_average = np.percentile(self.array5m, 50)
 
         if self.gprecs['safeLow'] < temp_safelow:
             self.gprecs['safeLow'] = temp_safelow
