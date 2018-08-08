@@ -181,7 +181,6 @@ class TxpoolContainer ():
             self.txpool_by_gp.rename(columns = {'gas_price':'tx_atabove'}, inplace=True)
             df = make_gp_index()
             #combine tx with gp >=100 gwei
-            #todo replace with max gp var
             temp = self.txpool_by_gp.loc[self.txpool_by_gp.index >= MAX_GP]
             if not temp.empty:
                 high_tx = temp['tx_atabove'].sum()        
@@ -531,13 +530,14 @@ class RecentlySubmittedTxDf():
             recentdf['still_here'] = recentdf.index.isin(current_txpool.index).astype(int)
             recentdf['mined'] = recentdf.index.isin(alltx.index[alltx['block_mined'].notnull()]).astype(int)
             recentdf['round_gp_10gwei'] = recentdf['round_gp_10gwei'].astype(int)
-            recentdf = recentdf[['gas_price', 'round_gp_10gwei', 'still_here', 'mined', 'age']].groupby('round_gp_10gwei').agg({'gas_price':'count', 'still_here':'sum', 'mined':'sum', 'age':'median'})
+            recentdf = recentdf[['gas_price', 'round_gp_10gwei', 'still_here', 'mined']].groupby('round_gp_10gwei').agg({'gas_price':'count', 'still_here':'sum', 'mined':'sum'})
             recentdf.rename(columns={'gas_price':'total'}, inplace=True)
             recentdf['pct_remaining'] = recentdf['still_here'] / recentdf['total'] *100
             recentdf['pct_mined'] = recentdf['mined'] / recentdf['total'] *100
             recentdf['pct_remaining'] = recentdf['pct_remaining'].astype(int)
             recentdf['pct_mined'] = recentdf['pct_mined'].astype(int)
             df = make_gp_index()
+            df = df.join(self.txpool.txpool_by_gp[['age']], how='left')
             df = df.join(recentdf, how='left')
             self.print_length()
             self.df = df
@@ -555,12 +555,11 @@ class RecentlySubmittedTxDf():
             unsafe_blockage = 10
         elif self.name is '30mago':
             unsafe_blockage = 30
-        unsafe1 = df.loc[(df['total'] >= 5) & (df['pct_remaining'] > 15)].index.max()
-        unsafe2 = df.loc[(df['total'] >= 5) & (df['pct_mined'] <= 1)].index.max()
-        unsafe3 = df.loc[df['age'] >= unsafe_blockage].index.max()
-        unsafe = np.nanmax([unsafe1, unsafe2, unsafe3])
-        print (unsafe1, unsafe2, unsafe3, unsafe)
-        safe_gp = df.loc[df.index > unsafe].index.min()
+        safe1 = df.loc[(df['total'] > 5) & (df['pct_remaining'] < 15) & (df['pct_mined'] >=1)].index.min()
+        unsafe1 = df.loc[df['age'] >= unsafe_blockage].index.max()
+        safe2 = df.loc[df.index > unsafe1].index.min()
+        print (safe1, safe2)
+        safe_gp = np.nanmax([safe1, safe2])
         nomine_gp= df.loc[(df['mined'] == 0) & (df.index < safe_gp)].index.max()
         if not nomine_gp < MAX_GP:
             nomine_gp = None
@@ -732,18 +731,12 @@ class GasPriceReport():
         self.array30m.append(self.gprecs['safeLow'])
         self.array5m.append(self.gprecs['average'])
 
-        temp_safelow = np.percentile(self.array30m, 50)
-        temp_average = np.percentile(self.array5m, 50)
-
-        if self.gprecs['safeLow'] < temp_safelow:
-            self.gprecs['safeLow'] = temp_safelow
+        self.gprecs['safeLow'] = np.percentile(self.array30m, 50)
+        self.gprecs['average'] = np.percentile(self.array5m, 50)
         
-        if self.gprecs['average'] < temp_average:
-            self.gprecs['average'] = temp_average
-
-        if len(self.array5m) > 15:
+        if len(self.array5m) > 10:
             self.array5m.pop(0)
-        if len(self.array30m) > 15:
+        if len(self.array30m) > 10:
             self.array30m.pop(0)
         
         for rec, value in self.gprecs.items():
@@ -754,7 +747,7 @@ class GasPriceReport():
 
             if gasprice:
                 gasprice = int(gasprice)
-                wait =  prediction_table.at[prediction_table.index[gasprice], 'expectedTime']
+                wait =  prediction_table.at[gasprice, 'expectedTime']
             if wait:
                 wait = round(wait, 1)
             else:
