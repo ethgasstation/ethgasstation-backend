@@ -9,6 +9,7 @@ from hexbytes import HexBytes
 
 console = Output()
 
+
 class TxBatch(object):
     """An extremely simple JSON-RPC batch request for web3.eth.getTransaction, to use until web3 adds batch."""
 
@@ -22,7 +23,6 @@ class TxBatch(object):
         else:
             self.web3 = web3_provider
         self._setRequestFromProvider(self.web3)
-    
 
     def batchRequest(self, method, hex_list):
         """submit and process batchRequest."""
@@ -37,7 +37,7 @@ class TxBatch(object):
             req = {
                 'jsonrpc': '2.0',
                 'method': method,
-                'params': [ tx_hash ],
+                'params': [tx_hash],
                 'id': idx
             }
             req_list.append(req)
@@ -46,17 +46,19 @@ class TxBatch(object):
         if results is False:
             console.warn("Transaction batch request failed")
             return {}
-        
+
         req_results = {}
         for result in results:
             key = hex_list[int(result['id'])]
             value = self._castAttributeDict(
-                        self._formatTransactionResult(
-                            result['result']))
+                self._formatTransactionResult(
+                    result['result']
+                )
+            )
             req_results[key] = value
 
         return req_results
-    
+
     def nonceBatch(self, method, hex_list, block):
         if len(hex_list) == 0:
             # there's no reason to go make a request for an
@@ -68,10 +70,10 @@ class TxBatch(object):
         block = hex(block)
         for from_add in hex_list:
             req = {
-                'jsonrpc':'2.0',
-                'method':method,
-                'params':[from_add, block],
-                'id':idx
+                'jsonrpc': '2.0',
+                'method': method,
+                'params': [from_add, block],
+                'id': idx
             }
             req_list.append(req)
             idx += 1
@@ -79,7 +81,7 @@ class TxBatch(object):
         if results is False:
             console.warn("Transaction batch request failed")
             return {}
-        
+
         req_results = {}
         for result in results:
             key = hex_list[int(result['id'])]
@@ -96,10 +98,10 @@ class TxBatch(object):
             else:
                 return False
         except Exception as e:
-            console.warn (e)
-            console.warn ("post_batch failure")
+            console.warn(e)
+            console.warn("post_batch failure")
             return False
-    
+
     def _setRequestFromProvider(self, web3_provider):
         """Get the RPC HTTP endpoint URI from an instantiated Web3 provider."""
         for provider in web3_provider.providers:
@@ -132,6 +134,7 @@ class TxBatch(object):
                         if strlen >= 3 and value[0:2] == '0x':
                             result[key] = int(value, 16)
         return result
+
 
 class TxBatchError(Exception):
     pass
