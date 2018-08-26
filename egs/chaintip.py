@@ -14,9 +14,11 @@ import web3
 from .settings import settings_file_loaded, get_setting, get_web3_provider
 from .output import Output
 
+
 class ChaintipException(Exception):
     """Generic exception for Chaintip."""
     pass
+
 
 class Chaintip(object):
     """Chaintip detection class."""
@@ -47,15 +49,15 @@ class Chaintip(object):
             self.infura_api_key = get_setting('api', 'infura_api_key')
         except KeyError:
             if 'infura' in self.get_highest_from:
-                raise ChaintipException("infura_api_key is not set and is required.")
+                raise ChaintipException(
+                    "infura_api_key is not set and is required.")
 
         try:
             self.etherscan_api_key = get_setting('api', 'etherscan_api_key')
         except KeyError:
             if 'etherscan' in self.get_highest_from:
-                raise ChaintipException("etherscan_api_key is not set and is required.")
-
-
+                raise ChaintipException(
+                    "etherscan_api_key is not set and is required.")
 
     def get_canonical_highest_block(self):
         """Return an integer value of the highest known block to Chaintip."""
@@ -69,7 +71,6 @@ class Chaintip(object):
                 return self.web3.eth.blockNumber
             except:
                 return -1
-
 
     def get_highest_known_block(self):
         """Get the highest known block from data sources."""
@@ -93,9 +94,11 @@ class Chaintip(object):
                         highest.append(res)
                         providers.append('infura')
                 else:
-                    self.console.warn("Unknown blockchain provider %s" % source)
+                    self.console.warn(
+                        "Unknown blockchain provider %s" % source)
             except:
-                self.console.error("Error getting highest block from source %s" % source)
+                self.console.error(
+                    "Error getting highest block from source %s" % source)
         if len(highest) == 0:
             self.console.error("Do not have a highest block from sources.")
             return (0, 'failure')
@@ -103,16 +106,18 @@ class Chaintip(object):
         provider = providers[highest.index(best)]
         return (best, provider)
 
-
     def _get_highest_known_block_etherscan(self):
         """Get the highest block from etherscan"""
         uri = "https://api.etherscan.io/api"
-        res = requests.get(uri,
-            data={ 'module': 'proxy', 'action':
-                'eth_blockNumber',
-                'apikey': self.etherscan_api_key },
-            headers= { 'user-agent': self.user_agent },
-            timeout=5)
+        res = requests.get(
+            uri,
+            data={'module': 'proxy',
+                  'action': 'eth_blockNumber',
+                  'apikey': self.etherscan_api_key
+                  },
+            headers={'user-agent': self.user_agent},
+            timeout=5
+        )
 
         if res.status_code == 200 and res.json():
             try:
@@ -122,20 +127,18 @@ class Chaintip(object):
                 return False
         return False
 
-
     def _get_highest_known_block_etherchain(self):
         """Get the highest block from etherchain.org as nicely as possible"""
         uri = 'https://www.etherchain.org/blocks/data?draw=0&start=0&length=0'
         res = requests.get(uri,
-            headers = { 'user-agent': self.user_agent },
-            timeout=5)
+                           headers={'user-agent': self.user_agent},
+                           timeout=5)
         if res.status_code == 200:
             try:
                 return res.json()['recordsTotal']
             except KeyError:
                 return False
         return False
-
 
     def _get_highest_known_block_infura(self):
         """Get the highest known block from Consensys Infura"""
