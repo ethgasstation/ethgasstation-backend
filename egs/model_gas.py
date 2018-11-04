@@ -1,4 +1,4 @@
-#analysis:  Run poission regression models
+#analysis:  Run Poisson regression models
 
 import json
 import math
