@@ -32,6 +32,9 @@ df
 echo "Last GETH Startus: "
 journalctl --unit=geth -n 3 --no-pager
 
+echo "Last Backend Startus: "
+journalctl --unit=ethgassbackend -n 6 --no-pager
+
 #geth status verify command:
 #journalctl --unit=geth -n 100 --no-pager
 
