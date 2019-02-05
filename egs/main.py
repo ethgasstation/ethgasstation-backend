@@ -76,9 +76,12 @@ def master_control(args):
                 alltx.prune(txpool)
                 txpool.prune(alltx.process_block) 
             
+            #write to mysql every block
+            alltx.write_to_sql(txpool)
+            blockdata.write_to_sql()
+
             #update counter
             alltx.process_block += 1
-
 
         except KeyboardInterrupt:
             #write to mysql
