@@ -4,10 +4,11 @@ import json
 import urllib
 import time
 from .jsonexporter import JSONExporter, JSONExporterException
+from .output import Output, OutputException
 import egs.settings
 egs.settings.load_settings()
 exporter = JSONExporter()
-
+console = Output()
 
 class SummaryReport():
     """analyzes data from last x blocks to create summary stats"""
