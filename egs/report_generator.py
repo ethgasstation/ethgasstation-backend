@@ -25,6 +25,9 @@ class SummaryReport():
             else:
                 return np.nan
 
+        console.info("### REPORT GENERATOR ###")
+        console.info((self.tx_df.loc[(self.tx_df['minedGasPrice']==self.post['cheapestTx']) & (self.tx_df['gas_offered'] == 21000)].index[0]))
+
         self.tx_df['minedGasPrice'] = self.tx_df.apply(get_minedgasprice, axis=1)
         self.tx_df['gasCat1'] = (self.tx_df['minedGasPrice'] <= 1) & (self.tx_df['minedGasPrice'] >=0)
         self.tx_df['gasCat2'] = (self.tx_df['minedGasPrice']>1) & (self.tx_df['minedGasPrice']<= 4)

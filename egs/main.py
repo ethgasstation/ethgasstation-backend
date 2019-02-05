@@ -62,21 +62,21 @@ def master_control(args):
             #make report if enabled
             if report_option is True:
                 if ((alltx.process_block % 1) == 0):
+                    console.info("Generating summary reports for web...")
                     report = SummaryReport(alltx, blockdata)
                     console.info("Writing summary reports for web...")
                     report.write_report()
 
-            #make json for frontend
             gaspricereport.write_to_json()
             predictiontable.write_to_json(txpool)
 
-            #keep dataframes/mysql from getting too large
             if ((alltx.process_block % 100) == 0):
+                console.info("Pruning dataframes/mysql from getting too large...")
                 blockdata.prune(alltx.process_block)
                 alltx.prune(txpool)
                 txpool.prune(alltx.process_block) 
             
-            #write to mysql every block
+            console.info("Writing txpool and blockdata to msql...")
             alltx.write_to_sql(txpool)
             blockdata.write_to_sql()
 
