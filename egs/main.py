@@ -75,10 +75,6 @@ def master_control(args):
                 blockdata.prune(alltx.process_block)
                 alltx.prune(txpool)
                 txpool.prune(alltx.process_block) 
-            
-            console.info("Writing txpool and blockdata to msql...")
-            alltx.write_to_sql(txpool)
-            blockdata.write_to_sql()
 
             #update counter
             alltx.process_block += 1
