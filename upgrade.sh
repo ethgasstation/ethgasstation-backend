@@ -23,7 +23,7 @@ chmod -R 777 /usr/local/SettleFinance/ethgasstation-backend
 
 echo "Starting Frontend And Backend..."
 systemctl start ethgassbackend
-sleep 3
+sleep 60
 systemctl restart ethgassbackend
 sleep 3
 systemctl start apache2
