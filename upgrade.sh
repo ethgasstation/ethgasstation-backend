@@ -22,15 +22,22 @@ cp -v /etc/ethgasstation/settings.conf /usr/local/SettleFinance/ethgasstation-ba
 chmod -R 777 /usr/local/SettleFinance/ethgasstation-backend
 
 echo "Starting Frontend And Backend..."
-systemctl start ethgassbackend && systemctl restart ethgassbackend
+systemctl start ethgassbackend
 sleep 3
-systemctl start apache2 && systemctl restart apache2
+systemctl restart ethgassbackend
+sleep 3
+systemctl start apache2
+sleep 3
+systemctl restart apache2
 
 echo "Checking Disk Space"
 df
 
 echo "Last GETH Startus: "
 journalctl --unit=geth -n 3 --no-pager
+
+echo "Last Backend Startus: "
+journalctl --unit=ethgassbackend -n 6 --no-pager
 
 #geth status verify command:
 #journalctl --unit=geth -n 100 --no-pager
