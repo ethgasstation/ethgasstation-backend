@@ -473,7 +473,7 @@ class AllTxContainer():
 
     def write_to_sql(self, txpool):
         """writes to sql, prevent buffer overflow errors"""
-        console.info("AllTxContainer => writing to mysql to prevent buffer overflow errors...")
+        console.info("AllTxContainer => writing df[" + str(len(self.df)) + "] to mysql to prevent buffer overflow errors...")
         if len(self.df) > 0:
             self.df.reset_index(inplace=True)
             length = len(self.df)
