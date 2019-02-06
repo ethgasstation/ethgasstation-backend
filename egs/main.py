@@ -4,7 +4,7 @@ Main Event Loop
 """
 import sys
 import traceback
-import warnings
+import logging
 from .egs_ref import *
 from .output import Output, OutputException
 
@@ -69,7 +69,7 @@ def master_control(args):
                     console.info("Writing summary reports for web...")
                     report.write_report()
                 except Exception as e:
-                    warnings.warn(e)
+                    logging.exception(e)
                     console.info("Report Summary Generation failed, see above error ^^")
 
             gaspricereport.write_to_json()

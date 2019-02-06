@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import json
+import string
 import urllib
 import time
 from .jsonexporter import JSONExporter, JSONExporterException
@@ -26,7 +27,6 @@ class SummaryReport():
             else:
                 return np.nan
 
-        
 
         self.tx_df['minedGasPrice'] = self.tx_df.apply(get_minedgasprice, axis=1)
         self.tx_df['gasCat1'] = (self.tx_df['minedGasPrice'] <= 1) & (self.tx_df['minedGasPrice'] >=0)
@@ -55,7 +55,13 @@ class SummaryReport():
         self.post['minMinedGasPrice'] = float(self.tx_df['gas_price'].min()/1e9)
         self.post['medianGasPrice']= float(self.tx_df['minedGasPrice'].quantile(.5))
         self.post['cheapestTx'] = float(self.tx_df.loc[self.tx_df['gas_offered']==21000, 'minedGasPrice'].min())
-        self.post['cheapestTxID'] = (self.tx_df.loc[(self.tx_df['minedGasPrice']==self.post['cheapestTx']) & (self.tx_df['gas_offered'] == 21000)].index[0]).lower()
+        
+        try:
+            self.post['cheapestTxID'] = (self.tx_df.loc[(self.tx_df['minedGasPrice']==self.post['cheapestTx']) & (self.tx_df['gas_offered'] == 21000)].index[0]).lower()
+        except:
+            console.info('Value: ' + str(self.tx_df.loc[(self.tx_df['minedGasPrice']==self.post['cheapestTx']) & (self.tx_df['gas_offered'] == 21000)].index[0]))
+            self.post['cheapestTxID'] = (self.tx_df.loc[(self.tx_df['minedGasPrice']==self.post['cheapestTx']) & (self.tx_df['gas_offered'] == 21000)].index[0]).lower()
+
         self.post['dearestTx'] = float(self.tx_df.loc[self.tx_df['gas_offered']==21000, 'minedGasPrice'].max())
         self.post['dearestTxID'] = (self.tx_df.loc[(self.tx_df['minedGasPrice']==self.post['dearestTx']) & (self.tx_df['gas_offered'] == 21000)].index[0]).lower()
         self.post['dearestgpID'] = (self.tx_df.loc[self.tx_df['minedGasPrice']==self.post['maxMinedGasPrice']].index[0]).lower()
