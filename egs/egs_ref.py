@@ -216,7 +216,8 @@ class BlockDataContainer():
         ins = inspect(engine)
         if 'blockdata2' in ins.get_table_names():
             try:
-                self.blockdata_df= pd.read_sql('SELECT * from blockdata2 order by block_number desc limit 2000', con=engine)
+                console.info("BlockDataContainer => Loading block-level dataframe from MySQL...")
+                self.blockdata_df= pd.read_sql('SELECT * from blockdata2 order by block_number desc limit 5000', con=engine)
             except Exception as e:
                 console.warn(e)
 
@@ -297,7 +298,7 @@ class AllTxContainer():
         
     
     def load_txdata(self):
-        """load data from mysql into dataframes"""
+        console.info("AllTxContainer => Load data from mysql into dataframes...")
         try:
             ins = inspect(engine)
             if 'alltx' in ins.get_table_names():
@@ -466,7 +467,7 @@ class AllTxContainer():
 
     def write_to_sql(self, txpool):
         """writes to sql, prevent buffer overflow errors"""
-        console.info("writing to mysql....this can take awhile")
+        console.info("AllTxContainer => writing to mysql to prevent buffer overflow errors...")
         self.df.reset_index(inplace=True)
         length = len(self.df)
         chunks = int(np.ceil(length/1000))
@@ -490,8 +491,8 @@ class AllTxContainer():
     
     def prune(self, txpool):
         console.info("Pruning txpool to keep dataframes and databases from getting too big...")
-        deleteBlock_mined = self.process_block - 1500
-        deleteBlock_posted = self.process_block - 2500
+        deleteBlock_mined = self.process_block - 10000
+        deleteBlock_posted = self.process_block - 10000
         self.df = self.df.loc[((self.df['block_mined'].isnull()) & (self.df['block_posted'] > deleteBlock_posted)) | (self.df['block_mined'] > deleteBlock_mined)]
         if txpool.got_txpool:
             self.df['txpool_current'] = self.df.index.isin(txpool.txpool_block.index).astype(int)

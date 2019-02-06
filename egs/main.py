@@ -70,6 +70,9 @@ def master_control(args):
             gaspricereport.write_to_json()
             predictiontable.write_to_json(txpool)
 
+            console.info("Saving Sate to MySQL...")
+            alltx.write_to_sql(txpool)
+
             if ((alltx.process_block % 1) == 0):
                 console.info("Pruning dataframes/mysql from getting too large...")
                 blockdata.prune(alltx.process_block)
