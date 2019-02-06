@@ -475,22 +475,23 @@ class AllTxContainer():
         """writes to sql, prevent buffer overflow errors"""
         console.info("AllTxContainer => writing df[" + str(len(self.df)) + "] to mysql to prevent buffer overflow errors...")
         if len(self.df) > 0:
-            self.df.reset_index(inplace=True)
-            length = len(self.df)
-            chunks = int(np.ceil(length/1000))
-            if length < 1000:
-                self.df.to_sql(con=engine, name='alltx', if_exists='replace')
+            tmpdf = self.df.copy()
+            tmpdf.reset_index(inplace=True)
+            length = len(tmpdf)
+            chunks = int(np.ceil(length/10000))
+            if length < 10000:
+                tmpdf.to_sql(con=engine, name='alltx', if_exists='replace')
             else:
                 start = 0
-                stop = 999
+                stop = 9999
                 for chunck in range(0,chunks):
-                    tempdf = self.df[start:stop]
+                    tempdf = tmpdf[start:stop]
                     if chunck == 0: 
                         tempdf.to_sql(con=engine, name='alltx', if_exists='replace')
                     else:
                         tempdf.to_sql(con=engine, name='alltx', if_exists='append')
-                    start += 1000
-                    stop += 1000
+                    start += 10000
+                    stop += 10000
                     if stop > length:
                         stop = length-1
             console.info("Wrote " + str(length) + " transactions to alltx.")
