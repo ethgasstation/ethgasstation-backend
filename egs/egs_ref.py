@@ -198,8 +198,9 @@ class TxpoolContainer ():
             console.warn("txpool block empty")
     
     def prune(self, block):
-        console.info("Pruning txpool dataframe used in analysis methods...")
+        console.info("Pruning txpool dataframe (" + str(len(self.txpool_df)) + ") used in analysis methods...")
         self.txpool_df = self.txpool_df.loc[self.txpool_df['block'] > (block-1500)]
+        console.info("Pruned txpool dataframe (" + str(len(self.txpool_df)) + ").")
          
 class BlockDataContainer():
     """Handles block-level dataframe and its processing"""
@@ -279,9 +280,10 @@ class BlockDataContainer():
         console.info("wrote " + str(len(self.blockdata_df)) + " blocks to mysql")
 
     def prune(self, block):
-        console.info("Pruning blockdata to keep dataframes and databases from getting too big")
+        console.info("Pruning blockdata (" + str(len(self.blockdata_df)) + ") to keep dataframes and databases from getting too big...")
         deleteBlock = block-5000
         self.blockdata_df = self.blockdata_df.loc[self.blockdata_df['block_number'] > deleteBlock]
+        console.info("Pruned blockdata (" + str(len(self.blockdata_df)) + ").")
 
 class AllTxContainer():
     """Handles transaction dataframe and analysis"""
@@ -490,7 +492,7 @@ class AllTxContainer():
 
     
     def prune(self, txpool):
-        console.info("Pruning txpool to keep dataframes and databases from getting too big...")
+        console.info("Pruning txpool (" + str(len(self.df)) + ") to keep dataframes and databases from getting too big...")
         deleteBlock_mined = self.process_block - 10000
         deleteBlock_posted = self.process_block - 10000
         self.df = self.df.loc[((self.df['block_mined'].isnull()) & (self.df['block_posted'] > deleteBlock_posted)) | (self.df['block_mined'] > deleteBlock_mined)]
@@ -498,6 +500,7 @@ class AllTxContainer():
             self.df['txpool_current'] = self.df.index.isin(txpool.txpool_block.index).astype(int)
             self.df = self.df.loc[((self.df['block_mined'].isnull()) & (self.df['txpool_current'] == 1)) | (self.df['block_mined'] > deleteBlock_mined)]
             self.df = self.df.drop('txpool_current', axis=1)
+        console.info("Pruned txpool (" + str(len(self.df)) + ").")
 
 
     

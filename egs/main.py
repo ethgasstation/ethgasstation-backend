@@ -22,6 +22,7 @@ def master_control(args):
     console.info("Type ctl-c to quit and save data to mysql")
     console.info('blocks '+ str(len(blockdata.blockdata_df)))
     console.info('txcount '+ str(len(alltx.df)))
+    console.info("Mod version: 0.1")
 
     while True:
         try:
@@ -60,16 +61,15 @@ def master_control(args):
             alltx.update_txblock(txpool.txpool_block, blockdata, predictiontable, gaspricereport.gprecs, submitted_30mago.nomine_gp) 
         
             #make report if enabled
-            if report_option is True:
-                if ((alltx.process_block % 1) == 0):
-                    try:
-                        console.info("Generating summary reports for web...")
-                        report = SummaryReport(alltx, blockdata)
-                        console.info("Writing summary reports for web...")
-                        report.write_report()
-                    except Exception as e:
-                        console.warn(e)
-                        console.warn("Report Summary Generation failed, see above error ^^")
+            if ((report_option is True) and (alltx.process_block % 1) == 0):
+                try:
+                    console.info("Generating summary reports for web...")
+                    report = SummaryReport(alltx, blockdata)
+                    console.info("Writing summary reports for web...")
+                    report.write_report()
+                except Exception as e:
+                    console.warn(e)
+                    console.warn("Report Summary Generation failed, see above error ^^")
 
             gaspricereport.write_to_json()
             predictiontable.write_to_json(txpool)
