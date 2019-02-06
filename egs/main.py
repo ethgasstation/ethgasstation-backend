@@ -11,6 +11,7 @@ from .output import Output, OutputException
 console = Output()
 
 def master_control(args):
+    console.info("ETH Gas Station, Settle Finance Mod v0.2")
     report_option = False
     if args.generate_report is True:
         report_option = True
@@ -21,9 +22,6 @@ def master_control(args):
     array5m = []
     array30m = []
     console.info("Type ctl-c to quit and save data to mysql")
-    console.info('blocks '+ str(len(blockdata.blockdata_df)))
-    console.info('txcount '+ str(len(alltx.df)))
-    console.info("Mod version: 0.1")
 
     while True:
         try:

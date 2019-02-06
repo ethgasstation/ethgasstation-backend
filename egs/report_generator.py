@@ -27,7 +27,6 @@ class SummaryReport():
             else:
                 return np.nan
 
-
         self.tx_df['minedGasPrice'] = self.tx_df.apply(get_minedgasprice, axis=1)
         self.tx_df['gasCat1'] = (self.tx_df['minedGasPrice'] <= 1) & (self.tx_df['minedGasPrice'] >=0)
         self.tx_df['gasCat2'] = (self.tx_df['minedGasPrice']>1) & (self.tx_df['minedGasPrice']<= 4)
@@ -55,13 +54,7 @@ class SummaryReport():
         self.post['minMinedGasPrice'] = float(self.tx_df['gas_price'].min()/1e9)
         self.post['medianGasPrice']= float(self.tx_df['minedGasPrice'].quantile(.5))
         self.post['cheapestTx'] = float(self.tx_df.loc[self.tx_df['gas_offered']==21000, 'minedGasPrice'].min())
-        
-        try:
-            self.post['cheapestTxID'] = (self.tx_df.loc[(self.tx_df['minedGasPrice']==self.post['cheapestTx']) & (self.tx_df['gas_offered'] == 21000)].index[0]).lower()
-        except:
-            console.info('Value: ' + str(self.tx_df.loc[(self.tx_df['minedGasPrice']==self.post['cheapestTx']) & (self.tx_df['gas_offered'] == 21000)].index[0]))
-            self.post['cheapestTxID'] = (self.tx_df.loc[(self.tx_df['minedGasPrice']==self.post['cheapestTx']) & (self.tx_df['gas_offered'] == 21000)].index[0]).lower()
-
+        self.post['cheapestTxID'] = (self.tx_df.loc[(self.tx_df['minedGasPrice']==self.post['cheapestTx']) & (self.tx_df['gas_offered'] == 21000)].index[0]).lower()
         self.post['dearestTx'] = float(self.tx_df.loc[self.tx_df['gas_offered']==21000, 'minedGasPrice'].max())
         self.post['dearestTxID'] = (self.tx_df.loc[(self.tx_df['minedGasPrice']==self.post['dearestTx']) & (self.tx_df['gas_offered'] == 21000)].index[0]).lower()
         self.post['dearestgpID'] = (self.tx_df.loc[self.tx_df['minedGasPrice']==self.post['maxMinedGasPrice']].index[0]).lower()
@@ -166,7 +159,24 @@ class SummaryReport():
             '0xb9e7f8568e08d5659f5d29c4997173d84cdf2607': 'Swarm City',
             '0x06012c8cf97bead5deae237070f9587f8e7a266d': 'Cryptokitties',
             '0xb1690c08e213a35ed9bab7b318de14420fb57d8c': 'Cryptokitties Auction',
-            '0x2a0c0dbecc7e4d658f48e01e3fa353f44050c208': 'IDEX'
+            '0x2a0c0dbecc7e4d658f48e01e3fa353f44050c208': 'IDEX',
+            '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2': 'WrappedEther',
+            '0xaB5C66752a9e8167967685F1450532fB96d5d24f': 'Huobi 1',
+            '0x6748F50f686bfbcA6Fe8ad62b22228b87F31ff2b': 'Huobi 2',
+            '0xfdb16996831753d5331fF813c29a93c76834A0AD': 'Huobi 3',
+            '0xeEe28d484628d41A82d01e21d12E2E78D69920da': 'Huobi 4',
+            '0x5C985E89DDe482eFE97ea9f1950aD149Eb73829B': 'Huobi 5',
+            '0xDc76CD25977E0a5Ae17155770273aD58648900D3': 'Huobi 6',
+            '0xadB2B42F6bD96F5c65920b9ac88619DcE4166f94': 'Huobi 7',
+            '0xa8660c8ffD6D578F657B72c0c811284aef0B735e': 'Huobi 8',
+            '0x1062a747393198f70F71ec65A582423Dba7E5Ab3': 'Huobi 9',
+            '0xE93381fB4c4F14bDa253907b18faD305D799241a': 'Huobi 10',
+            '0xFA4B5Be3f2f84f56703C42eB22142744E95a2c58': 'Huobi 11',
+            '0x46705dfff24256421A05D056c29E81Bdc09723B8': 'Huobi 12',
+            '0x1B93129F05cc2E840135AAB154223C75097B69bf': 'Huobi 14',
+            '0xEB6D43Fe241fb2320b5A3c9BE9CDfD4dd8226451': 'Huobi 15',
+            '0x956e0DBEcC0e873d34a5e39B25f364b2CA036730': 'Huobi 16',
+            '0x03cb0021808442Ad5EFb61197966aef72a1deF96': 'coToken'
         }
         gasguzz = self.tx_df.groupby('to_address').sum()
         gasguzz = gasguzz.sort_values('gasused', ascending = False)

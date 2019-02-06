@@ -23,12 +23,8 @@ chmod -R 777 /usr/local/SettleFinance/ethgasstation-backend
 
 echo "Starting Frontend And Backend..."
 systemctl start ethgassbackend
-sleep 60
-systemctl restart ethgassbackend
 sleep 3
 systemctl start apache2
-sleep 3
-systemctl restart apache2
 
 echo "Checking Disk Space"
 df
