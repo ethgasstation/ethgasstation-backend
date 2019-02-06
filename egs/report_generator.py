@@ -1,13 +1,15 @@
 import pandas as pd
 import numpy as np
 import json
+import string
 import urllib
 import time
 from .jsonexporter import JSONExporter, JSONExporterException
+from .output import Output, OutputException
 import egs.settings
 egs.settings.load_settings()
 exporter = JSONExporter()
-
+console = Output()
 
 class SummaryReport():
     """analyzes data from last x blocks to create summary stats"""
@@ -131,11 +133,25 @@ class SummaryReport():
         gg = {
             '0x6090a6e47849629b7245dfa1ca21d94cd15878ef': 'ENS registrar',
             '0xcd111aa492a9c77a367c36e6d6af8e6f212e0c8e': 'Acronis',
-            '0x209c4784ab1e8183cf58ca33cb740efbf3fc18ef': 'Poloniex',
+            '0x32Be343B94f860124dC4fEe278FDCBD38C102D88': 'Poloniex 1',
+            '0x209c4784ab1e8183cf58ca33cb740efbf3fc18ef': 'Poloniex 2',
+            '0xb794F5eA0ba39494cE839613fffBA74279579268': 'Poloniex 3',
+            '0x3f5CE5FBFe3E9af3971dD833D26bA9b5C936f0bE': 'Binance 1',
+            '0xD551234Ae421e3BCBA99A0Da6d736074f22192FF': 'Binance 2',
+            '0x564286362092D8e7936f0549571a803B203aAceD': 'Binance 3',
+            '0x0681d8Db095565FE8A346fA0277bFfdE9C0eDBBF': 'Binance 4',
+            '0xfE9e8709d3215310075d67E3ed32A380CCf451C8': 'Binance 5',
+            '0x4E9ce36E442e55EcD9025B9a6E0D88485d628A67': 'Binance 6',
+            '0x120A270bbC009644e35F0bB6ab13f95b8199c4ad': 'Shapeshift 1',
+            '0x9e6316f44BaEeeE5d41A1070516cc5fA47BAF227': 'Shapeshift 2',
+            '0x70faa28A6B8d6829a4b1E649d26eC9a2a39ba413': 'Shapeshift 3',
+            '0x563b377A956c80d77A7c613a9343699Ad6123911': 'Shapeshift 4',
+            '0xD3273EBa07248020bf98A8B560ec1576a612102F': 'Shapeshift 5',
+            '0x3b0BC51Ab9De1e5B7B6E34E5b960285805C41736': 'Shapeshift 6',
+            '0xeed16856D551569D134530ee3967Ec79995E2051': 'Shapeshift 7',
             '0xd91e45416bfbbec6e2d1ae4ac83b788a21acf583': 'Etheroll',
             '0xa74476443119a942de498590fe1f2454d7d4ac0d': 'Golem',
             '0xedce883162179d4ed5eb9bb2e7dccf494d75b3a0': 'Bittrex',
-            '0x70faa28a6b8d6829a4b1e649d26ec9a2a39ba413': 'Shapeshift',
             '0xff1f9c77a0f1fd8f48cfeee58b714ca03420ddac': 'e4row',
             '0x8d12a197cb00d4747a1fe03395095ce2a5cc6819': 'Etherdelta',
             '0xe94b04a0fed112f3664e45adb2b8915693dd5ff3': 'Bittrex Safe Split',
@@ -143,7 +159,24 @@ class SummaryReport():
             '0xb9e7f8568e08d5659f5d29c4997173d84cdf2607': 'Swarm City',
             '0x06012c8cf97bead5deae237070f9587f8e7a266d': 'Cryptokitties',
             '0xb1690c08e213a35ed9bab7b318de14420fb57d8c': 'Cryptokitties Auction',
-            '0x2a0c0dbecc7e4d658f48e01e3fa353f44050c208': 'IDEX'
+            '0x2a0c0dbecc7e4d658f48e01e3fa353f44050c208': 'IDEX',
+            '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2': 'WrappedEther',
+            '0xaB5C66752a9e8167967685F1450532fB96d5d24f': 'Huobi 1',
+            '0x6748F50f686bfbcA6Fe8ad62b22228b87F31ff2b': 'Huobi 2',
+            '0xfdb16996831753d5331fF813c29a93c76834A0AD': 'Huobi 3',
+            '0xeEe28d484628d41A82d01e21d12E2E78D69920da': 'Huobi 4',
+            '0x5C985E89DDe482eFE97ea9f1950aD149Eb73829B': 'Huobi 5',
+            '0xDc76CD25977E0a5Ae17155770273aD58648900D3': 'Huobi 6',
+            '0xadB2B42F6bD96F5c65920b9ac88619DcE4166f94': 'Huobi 7',
+            '0xa8660c8ffD6D578F657B72c0c811284aef0B735e': 'Huobi 8',
+            '0x1062a747393198f70F71ec65A582423Dba7E5Ab3': 'Huobi 9',
+            '0xE93381fB4c4F14bDa253907b18faD305D799241a': 'Huobi 10',
+            '0xFA4B5Be3f2f84f56703C42eB22142744E95a2c58': 'Huobi 11',
+            '0x46705dfff24256421A05D056c29E81Bdc09723B8': 'Huobi 12',
+            '0x1B93129F05cc2E840135AAB154223C75097B69bf': 'Huobi 14',
+            '0xEB6D43Fe241fb2320b5A3c9BE9CDfD4dd8226451': 'Huobi 15',
+            '0x956e0DBEcC0e873d34a5e39B25f364b2CA036730': 'Huobi 16',
+            '0x03cb0021808442Ad5EFb61197966aef72a1deF96': 'coToken'
         }
         gasguzz = self.tx_df.groupby('to_address').sum()
         gasguzz = gasguzz.sort_values('gasused', ascending = False)

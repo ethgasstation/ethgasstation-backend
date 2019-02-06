@@ -64,4 +64,4 @@ It is also possible to run the oracle as a Docker container.
 In the Docker service, the Python script will dump data to JSON on Redis.
 You will need to update your settings.conf to the internal hostnames
 available for MariaDB, Redis, and geth or parity, respectively within your
-infrastructure.
+infrastructure. 

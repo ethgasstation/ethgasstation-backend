@@ -4,12 +4,14 @@ Main Event Loop
 """
 import sys
 import traceback
+import logging
 from .egs_ref import *
 from .output import Output, OutputException
 
 console = Output()
 
 def master_control(args):
+    console.info("ETH Gas Station, Settle Finance Mod v0.2")
     report_option = False
     if args.generate_report is True:
         report_option = True
@@ -20,8 +22,6 @@ def master_control(args):
     array5m = []
     array30m = []
     console.info("Type ctl-c to quit and save data to mysql")
-    console.info('blocks '+ str(len(blockdata.blockdata_df)))
-    console.info('txcount '+ str(len(alltx.df)))
 
     while True:
         try:
@@ -60,25 +60,32 @@ def master_control(args):
             alltx.update_txblock(txpool.txpool_block, blockdata, predictiontable, gaspricereport.gprecs, submitted_30mago.nomine_gp) 
         
             #make report if enabled
-            if report_option is True:
-                if ((alltx.process_block % 5) == 0):
+            if ((report_option is True) and (alltx.process_block % 1) == 0):
+                try:
+                    console.info("Generating summary reports for web...")
                     report = SummaryReport(alltx, blockdata)
                     console.info("Writing summary reports for web...")
                     report.write_report()
+                except Exception as e:
+                    logging.exception(e)
+                    console.info("Report Summary Generation failed, see above error ^^")
 
-            #make json for frontend
             gaspricereport.write_to_json()
             predictiontable.write_to_json(txpool)
 
-            #keep dataframes/mysql from getting too large
-            if ((alltx.process_block % 50) == 0):
+            console.info("Saving 'alltx' sate to MySQL...")
+            alltx.write_to_sql(txpool)
+            console.info("Saving 'blockdata' sate to MySQL...")
+            blockdata.write_to_sql()
+
+            if ((alltx.process_block % 1) == 0):
+                console.info("Pruning dataframes/mysql from getting too large...")
                 blockdata.prune(alltx.process_block)
                 alltx.prune(txpool)
                 txpool.prune(alltx.process_block) 
-            
+
             #update counter
             alltx.process_block += 1
-
 
         except KeyboardInterrupt:
             #write to mysql

@@ -198,7 +198,9 @@ class TxpoolContainer ():
             console.warn("txpool block empty")
     
     def prune(self, block):
-        self.txpool_df = self.txpool_df.loc[self.txpool_df['block'] > (block-10)]
+        console.info("Pruning txpool dataframe (" + str(len(self.txpool_df)) + ") used in analysis methods...")
+        self.txpool_df = self.txpool_df.loc[self.txpool_df['block'] > (block-1500)]
+        console.info("Pruned txpool dataframe (" + str(len(self.txpool_df)) + ").")
          
 class BlockDataContainer():
     """Handles block-level dataframe and its processing"""
@@ -215,7 +217,9 @@ class BlockDataContainer():
         ins = inspect(engine)
         if 'blockdata2' in ins.get_table_names():
             try:
-                self.blockdata_df= pd.read_sql('SELECT * from blockdata2 order by block_number desc limit 2000', con=engine)
+                console.info("BlockDataContainer => Loading block-level dataframe from MySQL...")
+                self.blockdata_df= pd.read_sql('SELECT * from blockdata2 order by block_number desc limit 5000', con=engine)
+                console.info("BlockDataContainer => Loaded (" + str(len(self.blockdata_df)) + ") block-level dataframes.")
             except Exception as e:
                 console.warn(e)
 
@@ -270,17 +274,20 @@ class BlockDataContainer():
         self.speed = speed
         
     def write_to_sql(self):
-        """write data to mysql for analysis"""
-        self.blockdata_df = self.blockdata_df.sort_values(by=['block_number'], ascending=False)
-        self.blockdata_df = self.blockdata_df.head(1500)
-        self.blockdata_df.to_sql(con=engine, name='blockdata2', if_exists='replace', index=False)
-        console.info("wrote " + str(len(self.blockdata_df)) + " blocks to mysql")
+        console.info("Writing blockdata (" + str(len(self.blockdata_df)) + ") to mysql for analysis...")
+        if len(self.blockdata_df) > 0:
+            self.blockdata_df = self.blockdata_df.sort_values(by=['block_number'], ascending=False)
+            self.blockdata_df = self.blockdata_df.head(5000)
+            self.blockdata_df.to_sql(con=engine, name='blockdata2', if_exists='replace', index=False)
+            console.info("Wrote " + str(len(self.blockdata_df)) + " blocks to mysql")
+        else:
+            console.info("Not stored, 0 blocks in blockdata_df.")
 
     def prune(self, block):
-        """keep dataframes and databases from getting too big"""
-        console.info('pruning blockdata')
+        console.info("Pruning blockdata (" + str(len(self.blockdata_df)) + ") to keep dataframes and databases from getting too big...")
         deleteBlock = block-5000
         self.blockdata_df = self.blockdata_df.loc[self.blockdata_df['block_number'] > deleteBlock]
+        console.info("Pruned blockdata (" + str(len(self.blockdata_df)) + ").")
 
 class AllTxContainer():
     """Handles transaction dataframe and analysis"""
@@ -297,7 +304,7 @@ class AllTxContainer():
         
     
     def load_txdata(self):
-        """load data from mysql into dataframes"""
+        console.info("AllTxContainer => Load data from mysql into dataframes...")
         try:
             ins = inspect(engine)
             if 'alltx' in ins.get_table_names():
@@ -466,37 +473,41 @@ class AllTxContainer():
 
     def write_to_sql(self, txpool):
         """writes to sql, prevent buffer overflow errors"""
-        console.info("writing to mysql....this can take awhile")
-        self.df.reset_index(inplace=True)
-        length = len(self.df)
-        chunks = int(np.ceil(length/1000))
-        if length < 1000:
-            self.df.to_sql(con=engine, name='alltx', if_exists='replace')
+        console.info("AllTxContainer => writing df[" + str(len(self.df)) + "] to mysql to prevent buffer overflow errors...")
+        if len(self.df) > 0:
+            tmpdf = self.df.copy()
+            tmpdf.reset_index(inplace=True)
+            length = len(tmpdf)
+            chunks = int(np.ceil(length/10000))
+            if length < 10000:
+                tmpdf.to_sql(con=engine, name='alltx', if_exists='replace')
+            else:
+                start = 0
+                stop = 9999
+                for chunck in range(0,chunks):
+                    tempdf = tmpdf[start:stop]
+                    if chunck == 0: 
+                        tempdf.to_sql(con=engine, name='alltx', if_exists='replace')
+                    else:
+                        tempdf.to_sql(con=engine, name='alltx', if_exists='append')
+                    start += 10000
+                    stop += 10000
+                    if stop > length:
+                        stop = length-1
+            console.info("Wrote " + str(length) + " transactions to alltx.")
         else:
-            start = 0
-            stop = 999
-            for chunck in range(0,chunks):
-                tempdf = self.df[start:stop]
-                if chunck == 0: 
-                    tempdf.to_sql(con=engine, name='alltx', if_exists='replace')
-                else:
-                    tempdf.to_sql(con=engine, name='alltx', if_exists='append')
-                start += 1000
-                stop += 1000
-                if stop > length:
-                    stop = length-1
-        console.info("wrote " + str(length) + " transactions to alltx.")
+            console.info("Not stored, 0 transactions in alltx.")
 
-    
     def prune(self, txpool):
-        """keep dataframes and databases from getting too big"""
-        deleteBlock_mined = self.process_block - 1500
-        deleteBlock_posted = self.process_block - 2500
+        console.info("Pruning txpool (" + str(len(self.df)) + ") to keep dataframes and databases from getting too big...")
+        deleteBlock_mined = self.process_block - 10000
+        deleteBlock_posted = self.process_block - 10000
         self.df = self.df.loc[((self.df['block_mined'].isnull()) & (self.df['block_posted'] > deleteBlock_posted)) | (self.df['block_mined'] > deleteBlock_mined)]
         if txpool.got_txpool:
             self.df['txpool_current'] = self.df.index.isin(txpool.txpool_block.index).astype(int)
             self.df = self.df.loc[((self.df['block_mined'].isnull()) & (self.df['txpool_current'] == 1)) | (self.df['block_mined'] > deleteBlock_mined)]
             self.df = self.df.drop('txpool_current', axis=1)
+        console.info("Pruned txpool (" + str(len(self.df)) + ").")
 
 
     
