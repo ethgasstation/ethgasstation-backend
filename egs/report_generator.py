@@ -26,8 +26,7 @@ class SummaryReport():
             else:
                 return np.nan
 
-        console.info("### REPORT GENERATOR ###")
-        console.info((self.tx_df.loc[(self.tx_df['minedGasPrice']==self.post['cheapestTx']) & (self.tx_df['gas_offered'] == 21000)].index[0]))
+        
 
         self.tx_df['minedGasPrice'] = self.tx_df.apply(get_minedgasprice, axis=1)
         self.tx_df['gasCat1'] = (self.tx_df['minedGasPrice'] <= 1) & (self.tx_df['minedGasPrice'] >=0)
@@ -56,6 +55,11 @@ class SummaryReport():
         self.post['minMinedGasPrice'] = float(self.tx_df['gas_price'].min()/1e9)
         self.post['medianGasPrice']= float(self.tx_df['minedGasPrice'].quantile(.5))
         self.post['cheapestTx'] = float(self.tx_df.loc[self.tx_df['gas_offered']==21000, 'minedGasPrice'].min())
+
+        console.info("### REPORT GENERATOR ###")
+        test = (self.tx_df.loc[(self.tx_df['minedGasPrice']==self.post['cheapestTx']) & (self.tx_df['gas_offered'] == 21000)].index[0])
+        console.info(test)
+
         self.post['cheapestTxID'] = (self.tx_df.loc[(self.tx_df['minedGasPrice']==self.post['cheapestTx']) & (self.tx_df['gas_offered'] == 21000)].index[0]).lower()
         self.post['dearestTx'] = float(self.tx_df.loc[self.tx_df['gas_offered']==21000, 'minedGasPrice'].max())
         self.post['dearestTxID'] = (self.tx_df.loc[(self.tx_df['minedGasPrice']==self.post['dearestTx']) & (self.tx_df['gas_offered'] == 21000)].index[0]).lower()
