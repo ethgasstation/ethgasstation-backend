@@ -62,16 +62,22 @@ def master_control(args):
             #make report if enabled
             if report_option is True:
                 if ((alltx.process_block % 1) == 0):
-                    console.info("Generating summary reports for web...")
-                    report = SummaryReport(alltx, blockdata)
-                    console.info("Writing summary reports for web...")
-                    report.write_report()
+                    try:
+                        console.info("Generating summary reports for web...")
+                        report = SummaryReport(alltx, blockdata)
+                        console.info("Writing summary reports for web...")
+                        report.write_report()
+                    except Exception as e:
+                        console.warn(e)
+                        console.warn("Report Summary Generation failed, see above error ^^")
 
             gaspricereport.write_to_json()
             predictiontable.write_to_json(txpool)
 
-            console.info("Saving Sate to MySQL...")
+            console.info("Saving 'alltx' sate to MySQL...")
             alltx.write_to_sql(txpool)
+            console.info("Saving 'blockdata' sate to MySQL...")
+            blockdata.write_to_sql()
 
             if ((alltx.process_block % 1) == 0):
                 console.info("Pruning dataframes/mysql from getting too large...")
