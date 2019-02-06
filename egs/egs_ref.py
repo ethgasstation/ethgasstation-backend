@@ -219,6 +219,7 @@ class BlockDataContainer():
             try:
                 console.info("BlockDataContainer => Loading block-level dataframe from MySQL...")
                 self.blockdata_df= pd.read_sql('SELECT * from blockdata2 order by block_number desc limit 5000', con=engine)
+                console.info("BlockDataContainer => Loaded (" + str(len(self.blockdata_df)) + ") block-level dataframes.")
             except Exception as e:
                 console.warn(e)
 
@@ -273,11 +274,14 @@ class BlockDataContainer():
         self.speed = speed
         
     def write_to_sql(self):
-        """write data to mysql for analysis"""
-        self.blockdata_df = self.blockdata_df.sort_values(by=['block_number'], ascending=False)
-        self.blockdata_df = self.blockdata_df.head(1500)
-        self.blockdata_df.to_sql(con=engine, name='blockdata2', if_exists='replace', index=False)
-        console.info("wrote " + str(len(self.blockdata_df)) + " blocks to mysql")
+        console.info("Writing blockdata (" + str(len(self.blockdata_df)) + ") to mysql for analysis...")
+        if len(self.blockdata_df) > 0:
+            self.blockdata_df = self.blockdata_df.sort_values(by=['block_number'], ascending=False)
+            self.blockdata_df = self.blockdata_df.head(5000)
+            self.blockdata_df.to_sql(con=engine, name='blockdata2', if_exists='replace', index=False)
+            console.info("Wrote " + str(len(self.blockdata_df)) + " blocks to mysql")
+        else:
+            console.info("Not stored, 0 blocks in blockdata_df.")
 
     def prune(self, block):
         console.info("Pruning blockdata (" + str(len(self.blockdata_df)) + ") to keep dataframes and databases from getting too big...")
@@ -470,27 +474,29 @@ class AllTxContainer():
     def write_to_sql(self, txpool):
         """writes to sql, prevent buffer overflow errors"""
         console.info("AllTxContainer => writing to mysql to prevent buffer overflow errors...")
-        self.df.reset_index(inplace=True)
-        length = len(self.df)
-        chunks = int(np.ceil(length/1000))
-        if length < 1000:
-            self.df.to_sql(con=engine, name='alltx', if_exists='replace')
+        if len(self.df) > 0:
+            self.df.reset_index(inplace=True)
+            length = len(self.df)
+            chunks = int(np.ceil(length/1000))
+            if length < 1000:
+                self.df.to_sql(con=engine, name='alltx', if_exists='replace')
+            else:
+                start = 0
+                stop = 999
+                for chunck in range(0,chunks):
+                    tempdf = self.df[start:stop]
+                    if chunck == 0: 
+                        tempdf.to_sql(con=engine, name='alltx', if_exists='replace')
+                    else:
+                        tempdf.to_sql(con=engine, name='alltx', if_exists='append')
+                    start += 1000
+                    stop += 1000
+                    if stop > length:
+                        stop = length-1
+            console.info("Wrote " + str(length) + " transactions to alltx.")
         else:
-            start = 0
-            stop = 999
-            for chunck in range(0,chunks):
-                tempdf = self.df[start:stop]
-                if chunck == 0: 
-                    tempdf.to_sql(con=engine, name='alltx', if_exists='replace')
-                else:
-                    tempdf.to_sql(con=engine, name='alltx', if_exists='append')
-                start += 1000
-                stop += 1000
-                if stop > length:
-                    stop = length-1
-        console.info("wrote " + str(length) + " transactions to alltx.")
+            console.info("Not stored, 0 transactions in alltx.")
 
-    
     def prune(self, txpool):
         console.info("Pruning txpool (" + str(len(self.df)) + ") to keep dataframes and databases from getting too big...")
         deleteBlock_mined = self.process_block - 10000
