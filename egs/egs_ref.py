@@ -198,7 +198,8 @@ class TxpoolContainer ():
             console.warn("txpool block empty")
     
     def prune(self, block):
-        self.txpool_df = self.txpool_df.loc[self.txpool_df['block'] > (block-10)]
+        console.info("Pruning txpool dataframe used in analysis methods...")
+        self.txpool_df = self.txpool_df.loc[self.txpool_df['block'] > (block-1500)]
          
 class BlockDataContainer():
     """Handles block-level dataframe and its processing"""
@@ -277,8 +278,7 @@ class BlockDataContainer():
         console.info("wrote " + str(len(self.blockdata_df)) + " blocks to mysql")
 
     def prune(self, block):
-        """keep dataframes and databases from getting too big"""
-        console.info('pruning blockdata')
+        console.info("Pruning blockdata to keep dataframes and databases from getting too big")
         deleteBlock = block-5000
         self.blockdata_df = self.blockdata_df.loc[self.blockdata_df['block_number'] > deleteBlock]
 
@@ -489,7 +489,7 @@ class AllTxContainer():
 
     
     def prune(self, txpool):
-        """keep dataframes and databases from getting too big"""
+        console.info("Pruning txpool to keep dataframes and databases from getting too big...")
         deleteBlock_mined = self.process_block - 1500
         deleteBlock_posted = self.process_block - 2500
         self.df = self.df.loc[((self.df['block_mined'].isnull()) & (self.df['block_posted'] > deleteBlock_posted)) | (self.df['block_mined'] > deleteBlock_mined)]
