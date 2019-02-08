@@ -332,27 +332,24 @@ class AllTxContainer():
                     self.process_block = current_block
                     self.forced_skips = self.forced_skips + 1
 
-                pending_entries = None
+                self.pending_entries = []
                 while True:
                     try:
-                        pending_entries = self.pending_filter.get_new_entries() 
+                        self.pending_entries = self.pending_filter.get_new_entries() 
                         console.info("Got " + len(pending_entries) + " new pending entries.")
                         break
                     except:
                         try:
-                            console.warn("Pending transaction filter missing, re-establishing 'pending' filter...")
+                            console.warn("Pending transaction filter missing, re-establishing filter...")
                             web3 = egs.settings.get_web3_provider()
                             self.pending_filter = web3.eth.filter('pending')
                         except:
                             console.info("Pending transaction filter failed, retry in 1s...")
                             time.sleep(1)
 
-                if pending_entries is None:
-                    raise Exception('Pending entries were not defined, something went wrong!')
-
-                if len(pending_entries) > 0:
-                    console.info("Sample: " + str(pending_entries[0]))
-                    self.new_tx_list.extend(pending_entries)
+                if len(self.pending_entries) > 0:
+                    console.info("Sample: " + str(self.pending_entries[0]))
+                    self.new_tx_list.extend(self.pending_entries)
 
                 #try:
                 #    # console.debug("Getting filter changes...")
