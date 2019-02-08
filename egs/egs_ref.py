@@ -336,25 +336,22 @@ class AllTxContainer():
                 while True:
                     try:
                         self.pending_entries = self.pending_filter.get_new_entries() 
-                        console.info("Got " + len(pending_entries) + " new pending entries.")
                         break
                     except:
                         console.info("Pending transaction filter missing, re-establishing filter...")
                         try:
-                            console.info("(1)...")
                             web3 = egs.settings.get_web3_provider()
-                            console.info("(2)...")
                             self.pending_filter = web3.eth.filter('pending')
-                            console.info("(3)...")
                             self.pending_entries = self.pending_filter.get_new_entries()
                             break
                         except:
                             console.info("Pending transaction filter failed, retry within 1s...")
                             time.sleep(0.5)
 
-                console.info("(4)...")
-                if len(self.pending_entries) > 0:
-                    console.info("Sample: " + str(self.pending_entries[0]))
+                current_block = web3.eth.blockNumber
+
+                if (self.pending_entries is not None) and len(self.pending_entries) > 0:
+                     console.info("Found " + str(len(pending_entries)) + " new pending entries at block " + str(current_block))
                     self.new_tx_list.extend(self.pending_entries)
 
                 #try:
@@ -365,8 +362,6 @@ class AllTxContainer():
                 #    console.warn("Pending transaction filter missing, re-establishing filter")
                 #    self.pending_filter = web3.eth.filter('pending')
                 #    self.new_tx_list.extend(self.pending_filter.get_new_entries())
-
-                current_block = web3.eth.blockNumber
     
                 if self.process_block < current_block:
                     console.info('now processing block ' + str(self.process_block))
