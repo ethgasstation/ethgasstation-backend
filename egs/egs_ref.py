@@ -320,11 +320,10 @@ class AllTxContainer():
 
 
     def listen(self):
-        """listens for new pending tx and adds them to the alltx dataframe"""
         global web3
         #Set number of transactions to sample to keep from falling behind; can be adjusted
         current_block = web3.eth.blockNumber
-        console.info ("listening for new transactions at block "+ str(current_block)+"...." )
+        console.info ("listening for new pending transactions at block "+ str(current_block)+" and adding them to the alltx dataframe...." )
         self.new_tx_list = []
         try:
             while True:
@@ -333,9 +332,11 @@ class AllTxContainer():
                     self.process_block = current_block
                     self.forced_skips = self.forced_skips + 1
 
+                pending_entries = None
                 while True:
                     try:
-                        self.new_tx_list.extend(self.pending_filter.get_new_entries())
+                        pending_entries = self.pending_filter.get_new_entries() 
+                        console.info("Got " + len(pending_entries) + " new pending entries.")
                         break
                     except:
                         try:
@@ -343,9 +344,17 @@ class AllTxContainer():
                             web3 = egs.settings.get_web3_provider()
                             self.pending_filter = web3.eth.filter('pending')
                         except Exception as e:
+                            console.info("Pending transaction filter failed, see below error vv")
                             logging.exception(e)
                             console.info("Pending transaction filter failed, see above error ^^")
-                            time.sleep(1)
+                            time.sleep(0.1)
+
+                if pending_entries is None:
+                    raise Exception('Pending entries were not defined, something went wrong!')
+
+                if len(pending_entries) > 0:
+                    console.info("Sample: " + str(pending_entries[0]))
+                    self.new_tx_list.extend(pending_entries)
 
                 #try:
                 #    # console.debug("Getting filter changes...")
@@ -364,7 +373,7 @@ class AllTxContainer():
                     self.new_tx_list = set(self.new_tx_list)
                     return
                 else:
-                    time.sleep(0.5)
+                    time.sleep(0.1)
         except Exception as e:
             console.warn(e)
 
