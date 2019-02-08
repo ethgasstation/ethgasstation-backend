@@ -200,7 +200,7 @@ class TxpoolContainer ():
     
     def prune(self, block):
         console.info("Pruning txpool dataframe (" + str(len(self.txpool_df)) + ") used in analysis methods...")
-        self.txpool_df = self.txpool_df.loc[self.txpool_df['block'] > (block-1500)]
+        self.txpool_df = self.txpool_df.loc[self.txpool_df['block'] > (block-10)]
         console.info("Pruned txpool dataframe (" + str(len(self.txpool_df)) + ").")
          
 class BlockDataContainer():
@@ -501,20 +501,20 @@ class AllTxContainer():
             tmpdf = self.df.copy()
             tmpdf.reset_index(inplace=True)
             length = len(tmpdf)
-            chunks = int(np.ceil(length/10000))
-            if length < 10000:
+            chunks = int(np.ceil(length/5000))
+            if length < 5000:
                 tmpdf.to_sql(con=engine, name='alltx', if_exists='replace')
             else:
                 start = 0
-                stop = 9999
+                stop = 4999
                 for chunck in range(0,chunks):
                     tempdf = tmpdf[start:stop]
                     if chunck == 0: 
                         tempdf.to_sql(con=engine, name='alltx', if_exists='replace')
                     else:
                         tempdf.to_sql(con=engine, name='alltx', if_exists='append')
-                    start += 10000
-                    stop += 10000
+                    start += 5000
+                    stop += 5000
                     if stop > length:
                         stop = length-1
             console.info("Wrote " + str(length) + " transactions to alltx.")
@@ -523,8 +523,8 @@ class AllTxContainer():
 
     def prune(self, txpool):
         console.info("Pruning txpool (" + str(len(self.df)) + ") to keep dataframes and databases from getting too big...")
-        deleteBlock_mined = self.process_block - 10000
-        deleteBlock_posted = self.process_block - 10000
+        deleteBlock_mined = self.process_block - 5000
+        deleteBlock_posted = self.process_block - 5000
         self.df = self.df.loc[((self.df['block_mined'].isnull()) & (self.df['block_posted'] > deleteBlock_posted)) | (self.df['block_mined'] > deleteBlock_mined)]
         if txpool.got_txpool:
             self.df['txpool_current'] = self.df.index.isin(txpool.txpool_block.index).astype(int)
