@@ -321,6 +321,7 @@ class AllTxContainer():
 
     def listen(self):
         """listens for new pending tx and adds them to the alltx dataframe"""
+        global web3
         #Set number of transactions to sample to keep from falling behind; can be adjusted
         current_block = web3.eth.blockNumber
         console.info ("listening for new transactions at block "+ str(current_block)+"...." )
@@ -339,7 +340,6 @@ class AllTxContainer():
                     except:
                         try:
                             console.warn("Pending transaction filter missing, re-establishing filter...")
-                            global web3
                             web3 = egs.settings.get_web3_provider()
                             self.pending_filter = web3.eth.filter('pending')
                         except Exception as e:
