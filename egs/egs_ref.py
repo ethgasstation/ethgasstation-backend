@@ -334,6 +334,7 @@ class AllTxContainer():
                     self.forced_skips = self.forced_skips + 1
 
                 self.pending_entries = []
+
                 while True:
                     try:
                         self.pending_entries = self.pending_filter.get_new_entries() 
@@ -352,7 +353,7 @@ class AllTxContainer():
                 current_block = web3.eth.blockNumber
 
                 if (self.pending_entries is not None) and len(self.pending_entries) > 0:
-                    console.info("Found " + str(len(pending_entries)) + " new pending entries at block " + str(current_block))
+                    console.info("Found " + str(len(self.pending_entries)) + " new pending entries at block " + str(current_block))
                     self.new_tx_list.extend(self.pending_entries)
 
                 #try:
