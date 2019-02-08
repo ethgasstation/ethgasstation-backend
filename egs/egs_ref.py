@@ -501,20 +501,20 @@ class AllTxContainer():
             tmpdf = self.df.copy()
             tmpdf.reset_index(inplace=True)
             length = len(tmpdf)
-            chunks = int(np.ceil(length/1500))
-            if length < 1500:
+            chunks = int(np.ceil(length/1000))
+            if length < 1000:
                 tmpdf.to_sql(con=engine, name='alltx', if_exists='replace')
             else:
                 start = 0
-                stop = 1499
+                stop = 999
                 for chunck in range(0,chunks):
                     tempdf = tmpdf[start:stop]
                     if chunck == 0: 
                         tempdf.to_sql(con=engine, name='alltx', if_exists='replace')
                     else:
                         tempdf.to_sql(con=engine, name='alltx', if_exists='append')
-                    start += 1500
-                    stop += 1500
+                    start += 1000
+                    stop += 1000
                     if stop > length:
                         stop = length-1
             console.info("Wrote " + str(length) + " transactions to alltx.")
@@ -524,7 +524,7 @@ class AllTxContainer():
     def prune(self, txpool):
         console.info("Pruning txpool (" + str(len(self.df)) + ") to keep dataframes and databases from getting too big...")
         deleteBlock_mined = self.process_block - 1500
-        deleteBlock_posted = self.process_block - 1500
+        deleteBlock_posted = self.process_block - 2500
         self.df = self.df.loc[((self.df['block_mined'].isnull()) & (self.df['block_posted'] > deleteBlock_posted)) | (self.df['block_mined'] > deleteBlock_mined)]
         if txpool.got_txpool:
             self.df['txpool_current'] = self.df.index.isin(txpool.txpool_block.index).astype(int)
