@@ -278,7 +278,7 @@ class BlockDataContainer():
         console.info("Writing blockdata (" + str(len(self.blockdata_df)) + ") to mysql for analysis...")
         if len(self.blockdata_df) > 0:
             self.blockdata_df = self.blockdata_df.sort_values(by=['block_number'], ascending=False)
-            self.blockdata_df = self.blockdata_df.head(5000)
+            self.blockdata_df = self.blockdata_df.head(1500)
             self.blockdata_df.to_sql(con=engine, name='blockdata2', if_exists='replace', index=False)
             console.info("Wrote " + str(len(self.blockdata_df)) + " blocks to mysql")
         else:
@@ -286,7 +286,7 @@ class BlockDataContainer():
 
     def prune(self, block):
         console.info("Pruning blockdata (" + str(len(self.blockdata_df)) + ") to keep dataframes and databases from getting too big...")
-        deleteBlock = block-5000
+        deleteBlock = block-1500
         self.blockdata_df = self.blockdata_df.loc[self.blockdata_df['block_number'] > deleteBlock]
         console.info("Pruned blockdata (" + str(len(self.blockdata_df)) + ").")
 
@@ -501,20 +501,20 @@ class AllTxContainer():
             tmpdf = self.df.copy()
             tmpdf.reset_index(inplace=True)
             length = len(tmpdf)
-            chunks = int(np.ceil(length/5000))
-            if length < 5000:
+            chunks = int(np.ceil(length/1500))
+            if length < 1500:
                 tmpdf.to_sql(con=engine, name='alltx', if_exists='replace')
             else:
                 start = 0
-                stop = 4999
+                stop = 1499
                 for chunck in range(0,chunks):
                     tempdf = tmpdf[start:stop]
                     if chunck == 0: 
                         tempdf.to_sql(con=engine, name='alltx', if_exists='replace')
                     else:
                         tempdf.to_sql(con=engine, name='alltx', if_exists='append')
-                    start += 5000
-                    stop += 5000
+                    start += 1500
+                    stop += 1500
                     if stop > length:
                         stop = length-1
             console.info("Wrote " + str(length) + " transactions to alltx.")
@@ -523,8 +523,8 @@ class AllTxContainer():
 
     def prune(self, txpool):
         console.info("Pruning txpool (" + str(len(self.df)) + ") to keep dataframes and databases from getting too big...")
-        deleteBlock_mined = self.process_block - 5000
-        deleteBlock_posted = self.process_block - 5000
+        deleteBlock_mined = self.process_block - 1500
+        deleteBlock_posted = self.process_block - 1500
         self.df = self.df.loc[((self.df['block_mined'].isnull()) & (self.df['block_posted'] > deleteBlock_posted)) | (self.df['block_mined'] > deleteBlock_mined)]
         if txpool.got_txpool:
             self.df['txpool_current'] = self.df.index.isin(txpool.txpool_block.index).astype(int)
