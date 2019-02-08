@@ -340,12 +340,15 @@ class AllTxContainer():
                         break
                     except:
                         try:
-                            console.warn("Pending transaction filter missing, re-establishing filter...")
+                            console.info("Pending transaction filter missing, re-establishing filter...")
                             web3 = egs.settings.get_web3_provider()
                             self.pending_filter = web3.eth.filter('pending')
-                        except:
+                        except Exception as e:
+                            console.info("Failed re-establishing filter, see error blow vvv")
+                            console.info(str(e))
+                            console.info("Failed re-establishing filter, see error above ^^^")
                             console.info("Pending transaction filter failed, retry in 1s...")
-                            time.sleep(1)
+                            time.sleep(0.5)
 
                 if len(self.pending_entries) > 0:
                     console.info("Sample: " + str(self.pending_entries[0]))
@@ -368,7 +371,7 @@ class AllTxContainer():
                     self.new_tx_list = set(self.new_tx_list)
                     return
                 else:
-                    time.sleep(1)
+                    time.sleep(0.5)
         except Exception as e:
             console.warn(e)
 
