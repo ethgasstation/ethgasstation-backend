@@ -343,10 +343,8 @@ class AllTxContainer():
                             console.warn("Pending transaction filter missing, re-establishing 'pending' filter...")
                             web3 = egs.settings.get_web3_provider()
                             self.pending_filter = web3.eth.filter('pending')
-                        except Exception as e:
-                            console.info("Pending transaction filter failed, see below error vv")
-                            logging.exception(e)
-                            console.info("Pending transaction filter failed, see above error ^^")
+                        except:
+                            console.info("Pending transaction filter failed, retry in 1s...")
                             time.sleep(1)
 
                 if pending_entries is None:
