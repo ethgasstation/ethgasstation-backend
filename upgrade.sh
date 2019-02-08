@@ -29,8 +29,8 @@ systemctl start apache2
 echo "Checking Disk Space"
 df
 
-echo "Last GETH Startus: "
-journalctl --unit=geth -n 3 --no-pager
+#echo "Last GETH Startus: "
+#journalctl --unit=geth -n 3 --no-pager
 
 echo "Last Backend Startus: "
 journalctl --unit=ethgassbackend -n 25 --no-pager

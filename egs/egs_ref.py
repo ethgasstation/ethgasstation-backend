@@ -12,6 +12,7 @@ import urllib
 import time
 import random
 import string
+import logging
 from hexbytes import HexBytes
 from sqlalchemy import create_engine, inspect
 from .output import Output, OutputException
@@ -331,14 +332,27 @@ class AllTxContainer():
                     self.process_block = current_block
                     self.forced_skips = self.forced_skips + 1
 
-                try:
-                    # console.debug("Getting filter changes...")
-                    self.new_tx_list.extend(self.pending_filter.get_new_entries())
-                except:
-                    # filters suck. The node can kill them whenever it wants.
-                    console.warn("Pending transaction filter missing, re-establishing filter")
-                    self.pending_filter = web3.eth.filter('pending')
-                    self.new_tx_list.extend(self.pending_filter.get_new_entries())
+                while True:
+                    try:
+                        self.new_tx_list.extend(self.pending_filter.get_new_entries())
+                    except:
+                        try:
+                            console.warn("Pending transaction filter missing, re-establishing filter...")
+                            web3 = egs.settings.get_web3_provider()
+                            self.pending_filter = web3.eth.filter('pending')
+                        except Exception as e:
+                            logging.exception(e)
+                            console.info("Pending transaction filter failed, see above error ^^")
+                            time.sleep(1)
+
+                #try:
+                #    # console.debug("Getting filter changes...")
+                #    self.new_tx_list.extend(self.pending_filter.get_new_entries())
+                #except:
+                #    # filters suck. The node can kill them whenever it wants.
+                #    console.warn("Pending transaction filter missing, re-establishing filter")
+                #    self.pending_filter = web3.eth.filter('pending')
+                #    self.new_tx_list.extend(self.pending_filter.get_new_entries())
 
                 current_block = web3.eth.blockNumber
     
