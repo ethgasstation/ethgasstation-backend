@@ -335,9 +335,11 @@ class AllTxContainer():
                 while True:
                     try:
                         self.new_tx_list.extend(self.pending_filter.get_new_entries())
+                        break
                     except:
                         try:
                             console.warn("Pending transaction filter missing, re-establishing filter...")
+                            global web3
                             web3 = egs.settings.get_web3_provider()
                             self.pending_filter = web3.eth.filter('pending')
                         except Exception as e:
