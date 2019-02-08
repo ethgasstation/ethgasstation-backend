@@ -340,14 +340,14 @@ class AllTxContainer():
                         break
                     except:
                         try:
-                            console.warn("Pending transaction filter missing, re-establishing filter...")
+                            console.warn("Pending transaction filter missing, re-establishing 'pending' filter...")
                             web3 = egs.settings.get_web3_provider()
                             self.pending_filter = web3.eth.filter('pending')
                         except Exception as e:
                             console.info("Pending transaction filter failed, see below error vv")
                             logging.exception(e)
                             console.info("Pending transaction filter failed, see above error ^^")
-                            time.sleep(0.1)
+                            time.sleep(1)
 
                 if pending_entries is None:
                     raise Exception('Pending entries were not defined, something went wrong!')
@@ -373,7 +373,7 @@ class AllTxContainer():
                     self.new_tx_list = set(self.new_tx_list)
                     return
                 else:
-                    time.sleep(0.1)
+                    time.sleep(1)
         except Exception as e:
             console.warn(e)
 
