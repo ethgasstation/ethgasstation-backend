@@ -346,8 +346,9 @@ class AllTxContainer():
                             console.info("(2)...")
                             self.pending_filter = web3.eth.filter('pending')
                             console.info("(3)...")
+                            self.pending_entries = self.pending_filter.get_new_entries()
                         except:
-                            console.info("Pending transaction filter failed, retry in 1s...")
+                            console.info("Pending transaction filter failed, retry within 1s...")
                             time.sleep(0.5)
 
                 console.info("(4)...")
