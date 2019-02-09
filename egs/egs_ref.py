@@ -537,8 +537,8 @@ class AllTxContainer():
     def prune(self, txpool):
         console.info("NOT Pruning txpool (" + str(len(self.df)) + ") YET.")
         if len(self.df) > 2500:
-            #dfCount = len(self.df)
-            #console.info("Pruning txpool (" + str(len(self.df)) + ") to keep dataframes and databases from getting too big...")
+            dfCount = len(self.df)
+            console.info("Pruning txpool (" + str(len(self.df)) + ") at process block " + str(self.process_block) + " to keep dataframes and databases from getting too big...")
             #deleteBlock_mined = self.process_block - 1500
             #deleteBlock_posted = self.process_block - 2500
             #self.df = self.df.loc[((self.df['block_mined'].isnull()) & (self.df['block_posted'] > deleteBlock_posted)) | (self.df['block_mined'] > deleteBlock_mined)]
