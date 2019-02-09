@@ -22,6 +22,8 @@ def master_control(args):
     array5m = []
     array30m = []
     console.info("Type ctl-c to quit and save data to mysql")
+    console.info('blocks '+ str(len(blockdata.blockdata_df)))
+    console.info('txcount '+ str(len(alltx.df)))
 
     while True:
         try:
@@ -78,10 +80,10 @@ def master_control(args):
             blockdata.write_to_sql()
 
             #always prune data, drive is fast enough to manage
-            #console.info("Pruning dataframes/mysql from getting too large...")
-            #blockdata.prune(alltx.process_block)
+            console.info("Pruning dataframes/mysql from getting too large...")
+            blockdata.prune(alltx.process_block)
             #alltx.prune(txpool)
-            #txpool.prune(alltx.process_block)
+            txpool.prune(alltx.process_block)
 
             #update counter
             alltx.process_block += 1

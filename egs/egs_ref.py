@@ -201,15 +201,16 @@ class TxpoolContainer ():
     def prune(self, block):
         txpdfCount = len(self.txpool_df)
         maxDepth = 200
-        if txpdfCount > 250000 and block > maxDepth:
+        maxTxCount = 1000000
+        if txpdfCount > maxTxCount and block > maxDepth:
             console.info("Pruning txpool dataframes (" + str(txpdfCount) + ") used in analysis methods starting at block " + str(block) + ".")
             blockDepth = maxDepth
-            while blockDepth > 0 and len(self.txpool_df) > 250000:
+            while blockDepth > 0 and len(self.txpool_df) > maxTxCount:
                 self.txpool_df = self.txpool_df.loc[self.txpool_df['block'] > (block-blockDepth)]
                 blockDepth -= 1
             console.info("Pruned " + str(txpdfCount - len(self.txpool_df)) + " txpool dataframes up to block height of " + str(blockDepth) + ".")
         else:
-            console.info("Txpool dataframes were not pruned " + str(txpdfCount) + "/250000 or block height (" + str(block) + ") was less then " + str(maxDepth) + ".")
+            console.info("Txpool dataframes were not pruned " + str(txpdfCount) + "/" + str(maxTxCount) + " or block height (" + str(block) + ") was less then " + str(maxDepth) + ".")
 
          
 class BlockDataContainer():
@@ -323,7 +324,7 @@ class AllTxContainer():
         try:
             ins = inspect(engine)
             if 'alltx' in ins.get_table_names():
-                alltx = pd.read_sql('SELECT * from alltx order by block_posted desc limit 250000', con=engine)
+                alltx = pd.read_sql('SELECT * from alltx order by block_posted desc limit 1000000', con=engine)
                 alltx.set_index('index', drop=True, inplace=True)
                 if 'level_0' in alltx.columns:
                     self.df = alltx.drop('level_0', axis=1)
@@ -338,6 +339,7 @@ class AllTxContainer():
         current_block = web3.eth.blockNumber
         console.info ("listening for new pending transactions at block "+ str(current_block)+" and adding them to the alltx dataframe...." )
         self.new_tx_list = []
+        self.txlenCount = len(self.new_tx_list)
         try:
             while True:
                 if self.process_block < (current_block - 5):
@@ -367,6 +369,7 @@ class AllTxContainer():
                 if (self.pending_entries is not None) and len(self.pending_entries) > 0:
                     console.info("Found " + str(len(self.pending_entries)) + " new pending entries at block " + str(current_block))
                     self.new_tx_list.extend(self.pending_entries)
+                    self.new_tx_list = set(self.new_tx_list)
 
                 #try:
                 #    # console.debug("Getting filter changes...")
@@ -378,9 +381,7 @@ class AllTxContainer():
                 #    self.new_tx_list.extend(self.pending_filter.get_new_entries())
     
                 if self.process_block < current_block:
-                    console.info('now processing block ' + str(self.process_block))
-                    #get unique txids
-                    self.new_tx_list = set(self.new_tx_list)
+                    console.info("Got " + str(len(self.new_tx_list) - txlenCount)  + " new peding tx'es, now processing block " + str(self.process_block))
                     return
                 else:
                     time.sleep(1)
