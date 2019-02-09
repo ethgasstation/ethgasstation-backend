@@ -78,10 +78,10 @@ def master_control(args):
             blockdata.write_to_sql()
 
             #always prune data, drive is fast enough to manage
-            console.info("Pruning dataframes/mysql from getting too large...")
-            blockdata.prune(alltx.process_block)
-            alltx.prune(txpool)
-            txpool.prune(alltx.process_block) 
+            #console.info("Pruning dataframes/mysql from getting too large...")
+            #blockdata.prune(alltx.process_block)
+            #alltx.prune(txpool)
+            #txpool.prune(alltx.process_block)
 
             #update counter
             alltx.process_block += 1
