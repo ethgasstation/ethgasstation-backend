@@ -339,6 +339,7 @@ class AllTxContainer():
         current_block = web3.eth.blockNumber
         console.info ("listening for new pending transactions at block "+ str(current_block)+" and adding them to the alltx dataframe...." )
         self.new_tx_list = []
+        self.new_tx_list_tmp = []
         self.txlenCount = len(self.new_tx_list)
         try:
             while True:
@@ -368,9 +369,8 @@ class AllTxContainer():
 
                 if (self.pending_entries is not None) and len(self.pending_entries) > 0:
                     console.info("Found " + str(len(self.pending_entries)) + " new pending entries at block " + str(current_block))
-                    self.new_tx_list.extend(self.pending_entries)
-                    self.new_tx_list = set(self.new_tx_list)
-
+                    self.new_tx_list_tmp.extend(self.pending_entries)
+                    
                 #try:
                 #    # console.debug("Getting filter changes...")
                 #    self.new_tx_list.extend(self.pending_filter.get_new_entries())
@@ -381,6 +381,7 @@ class AllTxContainer():
                 #    self.new_tx_list.extend(self.pending_filter.get_new_entries())
     
                 if self.process_block < current_block:
+                    self.new_tx_list = set(self.new_tx_list_tmp)
                     console.info("Got " + str(len(self.new_tx_list) - txlenCount)  + " new peding tx'es, now processing block " + str(self.process_block))
                     return
                 else:
