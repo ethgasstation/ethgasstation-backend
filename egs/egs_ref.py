@@ -277,18 +277,23 @@ class BlockDataContainer():
     def write_to_sql(self):
         console.info("Writing blockdata (" + str(len(self.blockdata_df)) + ") to mysql for analysis...")
         if len(self.blockdata_df) > 0:
-            self.blockdata_df = self.blockdata_df.sort_values(by=['block_number'], ascending=False)
-            self.blockdata_df = self.blockdata_df.head(1500)
-            self.blockdata_df.to_sql(con=engine, name='blockdata2', if_exists='replace', index=False)
-            console.info("Wrote " + str(len(self.blockdata_df)) + " blocks to mysql")
+            bdf = self.blockdata_df.copy()
+            bdf = bdf.sort_values(by=['block_number'], ascending=False)
+            bdf = bdf.head(1500)
+            bdf.to_sql(con=engine, name='blockdata2', if_exists='replace', index=False)
+            console.info("Wrote " + str(len(bdf)) + " blocks to mysql")
         else:
             console.info("Not stored, 0 blocks in blockdata_df.")
 
     def prune(self, block):
-        console.info("Pruning blockdata (" + str(len(self.blockdata_df)) + ") to keep dataframes and databases from getting too big...")
-        deleteBlock = block-1500
-        self.blockdata_df = self.blockdata_df.loc[self.blockdata_df['block_number'] > deleteBlock]
-        console.info("Pruned blockdata (" + str(len(self.blockdata_df)) + ").")
+        bdfCount = len(self.blockdata_df)
+        if bdfCount > 5000:
+            console.info("Pruning blockdata (" + str(bdfCount) + ") to keep dataframes and databases from getting too big...")
+            deleteBlock = block-5000
+            self.blockdata_df = self.blockdata_df.loc[self.blockdata_df['block_number'] > deleteBlock]
+            console.info("Pruned " + str(bdfCount - len(self.blockdata_df)) + " blockdata frames.")
+        else:
+            console.info("Blockdata was not prunned, not enough dataframes " + str(len(self.blockdata_df)) + "/5000")
 
 class AllTxContainer():
     """Handles transaction dataframe and analysis"""
@@ -303,7 +308,6 @@ class AllTxContainer():
         self.new_tx_list = []
         self.pending_entries = []
         self.pctmined_gp_last100 = pd.DataFrame()
-        
     
     def load_txdata(self):
         console.info("AllTxContainer => Load data from mysql into dataframes...")
@@ -318,7 +322,6 @@ class AllTxContainer():
                 return
         except Exception as e:
             console.warn(e)
-
 
     def listen(self):
         global web3
@@ -522,18 +525,20 @@ class AllTxContainer():
             console.info("Not stored, 0 transactions in alltx.")
 
     def prune(self, txpool):
-        console.info("Pruning txpool (" + str(len(self.df)) + ") to keep dataframes and databases from getting too big...")
-        deleteBlock_mined = self.process_block - 1500
-        deleteBlock_posted = self.process_block - 2500
-        self.df = self.df.loc[((self.df['block_mined'].isnull()) & (self.df['block_posted'] > deleteBlock_posted)) | (self.df['block_mined'] > deleteBlock_mined)]
-        if txpool.got_txpool:
-            self.df['txpool_current'] = self.df.index.isin(txpool.txpool_block.index).astype(int)
-            self.df = self.df.loc[((self.df['block_mined'].isnull()) & (self.df['txpool_current'] == 1)) | (self.df['block_mined'] > deleteBlock_mined)]
-            self.df = self.df.drop('txpool_current', axis=1)
-        console.info("Pruned txpool (" + str(len(self.df)) + ").")
+        if len(self.df) > 2500:
+            dfCount = len(self.df)
+            console.info("Pruning txpool (" + str(len(self.df)) + ") to keep dataframes and databases from getting too big...")
+            deleteBlock_mined = self.process_block - 1500
+            deleteBlock_posted = self.process_block - 2500
+            self.df = self.df.loc[((self.df['block_mined'].isnull()) & (self.df['block_posted'] > deleteBlock_posted)) | (self.df['block_mined'] > deleteBlock_mined)]
+            if txpool.got_txpool:
+                self.df['txpool_current'] = self.df.index.isin(txpool.txpool_block.index).astype(int)
+                self.df = self.df.loc[((self.df['block_mined'].isnull()) & (self.df['txpool_current'] == 1)) | (self.df['block_mined'] > deleteBlock_mined)]
+                self.df = self.df.drop('txpool_current', axis=1)
+            console.info("Pruned txpool by " + str(len(self.df) - dfCount) + " dataframes.")
+        else:
+            console.info("Txpool was not prunned, not enough dataframes " + str(len(self.df)) + "/2500")
 
-
-    
 
 class RecentlySubmittedTxDf():
     """Df for holding recently submitted tx to track clearing from txpool"""
