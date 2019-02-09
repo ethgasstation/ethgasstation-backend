@@ -201,14 +201,14 @@ class TxpoolContainer ():
     def prune(self, block):
         txpdfCount = len(self.txpool_df)
         if txpdfCount > 250000 and block > 5000:
-            console.info("Pruning txpool dataframes (" + txpdfCount + ") used in analysis methods starting at block" + block + ".")
+            console.info("Pruning txpool dataframes (" + str(txpdfCount) + ") used in analysis methods starting at block" + str(block) + ".")
             blockDepth = 5000
             while blockDepth > 0 and len(self.txpool_df) > 250000:
                 self.txpool_df = self.txpool_df.loc[self.txpool_df['block'] > (block-blockDepth)]
                 blockDepth -= 1
-            console.info("Pruned " + str(txpdfCount - len(self.txpool_df)) + " txpool dataframes up to block height of " + blockDepth + ".")
+            console.info("Pruned " + str(txpdfCount - len(self.txpool_df)) + " txpool dataframes up to block height of " + str(blockDepth) + ".")
         else:
-            console.info("Txpool dataframes were not pruned " + txpdfCount + "/250000 or block height (" + block + ") was less then 5000.")
+            console.info("Txpool dataframes were not pruned " + str(txpdfCount) + "/250000 or block height (" + str(block) + ") was less then 5000.")
 
          
 class BlockDataContainer():
