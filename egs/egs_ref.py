@@ -199,9 +199,17 @@ class TxpoolContainer ():
             console.warn("txpool block empty")
     
     def prune(self, block):
-        console.info("Pruning txpool dataframe (" + str(len(self.txpool_df)) + ") used in analysis methods...")
-        self.txpool_df = self.txpool_df.loc[self.txpool_df['block'] > (block-10)]
-        console.info("Pruned txpool dataframe (" + str(len(self.txpool_df)) + ").")
+        txpdfCount = len(self.txpool_df)
+        if txpdfCount > 250000 and block > 5000:
+            console.info("Pruning txpool dataframes (" + txpdfCount + ") used in analysis methods starting at block" + block + ".")
+            blockDepth = 5000
+            while blockDepth > 0 and len(self.txpool_df) > 250000:
+                self.txpool_df = self.txpool_df.loc[self.txpool_df['block'] > (block-blockDepth)]
+                blockDepth -= 1
+            console.info("Pruned " + str(txpdfCount - len(self.txpool_df)) + " txpool dataframes up to block height of " + blockDepth + ".")
+        else
+            console.info("Txpool dataframes were not pruned " + txpdfCount + "/250000 or block height (" + block + ") was less then 5000.")
+
          
 class BlockDataContainer():
     """Handles block-level dataframe and its processing"""
@@ -279,7 +287,7 @@ class BlockDataContainer():
         if len(self.blockdata_df) > 0:
             bdf = self.blockdata_df.copy()
             bdf = bdf.sort_values(by=['block_number'], ascending=False)
-            bdf = bdf.head(1500)
+            bdf = bdf.head(5000)
             bdf.to_sql(con=engine, name='blockdata2', if_exists='replace', index=False)
             console.info("Wrote " + str(len(bdf)) + " blocks to mysql")
         else:
@@ -314,7 +322,7 @@ class AllTxContainer():
         try:
             ins = inspect(engine)
             if 'alltx' in ins.get_table_names():
-                alltx = pd.read_sql('SELECT * from alltx order by block_posted desc limit 100000', con=engine)
+                alltx = pd.read_sql('SELECT * from alltx order by block_posted desc limit 250000', con=engine)
                 alltx.set_index('index', drop=True, inplace=True)
                 if 'level_0' in alltx.columns:
                     self.df = alltx.drop('level_0', axis=1)
@@ -498,7 +506,6 @@ class AllTxContainer():
         
 
     def write_to_sql(self, txpool):
-        """writes to sql, prevent buffer overflow errors"""
         console.info("AllTxContainer => writing df[" + str(len(self.df)) + "] to mysql to prevent buffer overflow errors...")
         if len(self.df) > 0:
             tmpdf = self.df.copy()
@@ -535,7 +542,7 @@ class AllTxContainer():
                 self.df['txpool_current'] = self.df.index.isin(txpool.txpool_block.index).astype(int)
                 self.df = self.df.loc[((self.df['block_mined'].isnull()) & (self.df['txpool_current'] == 1)) | (self.df['block_mined'] > deleteBlock_mined)]
                 self.df = self.df.drop('txpool_current', axis=1)
-            console.info("Pruned txpool by " + str(len(self.df) - dfCount) + " dataframes.")
+            console.info("Pruned txpool by " + str(dfCount - len(self.df)) + " dataframes.")
         else:
             console.info("Txpool was not prunned, not enough dataframes " + str(len(self.df)) + "/2500")
 
