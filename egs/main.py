@@ -62,18 +62,19 @@ def master_control(args):
             alltx.update_txblock(txpool.txpool_block, blockdata, predictiontable, gaspricereport.gprecs, submitted_30mago.nomine_gp) 
         
             #always make json report
-            if ((alltx.process_block % 2) == 0):
+            if ((alltx.process_block % 3) == 0):
                 try:
                     console.info("Generating summary reports for web...")
                     report = SummaryReport(alltx, blockdata)
                     console.info("Writing summary reports for web...")
                     report.write_report()
-                    #make json for frontend
-                    gaspricereport.write_to_json()
-                    predictiontable.write_to_json(txpool)
                 except Exception as e:
                     logging.exception(e)
                     console.info("Report Summary Generation failed, see above error ^^")
+
+            #make json for frontend
+            gaspricereport.write_to_json()
+            predictiontable.write_to_json(txpool)
 
             console.info("Saving 'alltx' sate to MySQL...")
             alltx.write_to_sql(txpool)
