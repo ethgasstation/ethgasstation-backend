@@ -207,7 +207,7 @@ class TxpoolContainer ():
                 self.txpool_df = self.txpool_df.loc[self.txpool_df['block'] > (block-blockDepth)]
                 blockDepth -= 1
             console.info("Pruned " + str(txpdfCount - len(self.txpool_df)) + " txpool dataframes up to block height of " + blockDepth + ".")
-        else
+        else:
             console.info("Txpool dataframes were not pruned " + txpdfCount + "/250000 or block height (" + block + ") was less then 5000.")
 
          
