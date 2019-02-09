@@ -351,7 +351,7 @@ class AllTxContainer():
                             break
                         except:
                             console.info("Pending transaction filter failed, retry within 1s...")
-                            time.sleep(0.5)
+                            time.sleep(1)
 
                 current_block = web3.eth.blockNumber
 
@@ -374,7 +374,7 @@ class AllTxContainer():
                     self.new_tx_list = set(self.new_tx_list)
                     return
                 else:
-                    time.sleep(0.5)
+                    time.sleep(1)
         except Exception as e:
             console.warn(e)
 
