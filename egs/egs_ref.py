@@ -200,7 +200,7 @@ class TxpoolContainer ():
     
     def prune(self, block):
         txpdfCount = len(self.txpool_df)
-        maxDepth = 200
+        maxDepth = 5000
         maxTxCount = 1000000
         if txpdfCount > maxTxCount and block > maxDepth:
             console.info("Pruning txpool dataframes (" + str(txpdfCount) + ") used in analysis methods starting at block " + str(block) + ".")
@@ -547,7 +547,7 @@ class AllTxContainer():
                 #self.df['txpool_current'] = self.df.index.isin(txpool.txpool_block.index).astype(int)
                 #self.df = self.df.loc[((self.df['block_mined'].isnull()) & (self.df['txpool_current'] == 1)) | (self.df['block_mined'] > deleteBlock_mined)]
                 #self.df = self.df.drop('txpool_current', axis=1)
-            #console.info("Pruned txpool by " + str(dfCount - len(self.df)) + " dataframes.")
+            console.info("Pruned txpool by " + str(dfCount - len(self.df)) + " dataframes.")
         else:
             console.info("Txpool was not prunned, not enough dataframes " + str(len(self.df)) + "/2500.")
 
