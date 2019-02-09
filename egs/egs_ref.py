@@ -535,17 +535,19 @@ class AllTxContainer():
             console.info("Not stored, 0 transactions in alltx.")
 
     def prune(self, txpool):
+        console.info("NOT Pruning txpool (" + str(len(self.df)) + ") YET.")
         if len(self.df) > 2500:
-            dfCount = len(self.df)
-            console.info("Pruning txpool (" + str(len(self.df)) + ") to keep dataframes and databases from getting too big...")
-            deleteBlock_mined = self.process_block - 1500
-            deleteBlock_posted = self.process_block - 2500
-            self.df = self.df.loc[((self.df['block_mined'].isnull()) & (self.df['block_posted'] > deleteBlock_posted)) | (self.df['block_mined'] > deleteBlock_mined)]
+            #dfCount = len(self.df)
+            #console.info("Pruning txpool (" + str(len(self.df)) + ") to keep dataframes and databases from getting too big...")
+            #deleteBlock_mined = self.process_block - 1500
+            #deleteBlock_posted = self.process_block - 2500
+            #self.df = self.df.loc[((self.df['block_mined'].isnull()) & (self.df['block_posted'] > deleteBlock_posted)) | (self.df['block_mined'] > deleteBlock_mined)]
             if txpool.got_txpool:
-                self.df['txpool_current'] = self.df.index.isin(txpool.txpool_block.index).astype(int)
-                self.df = self.df.loc[((self.df['block_mined'].isnull()) & (self.df['txpool_current'] == 1)) | (self.df['block_mined'] > deleteBlock_mined)]
-                self.df = self.df.drop('txpool_current', axis=1)
-            console.info("Pruned txpool by " + str(dfCount - len(self.df)) + " dataframes.")
+                console.info("!!! txpool.got_txpool !!!")
+                #self.df['txpool_current'] = self.df.index.isin(txpool.txpool_block.index).astype(int)
+                #self.df = self.df.loc[((self.df['block_mined'].isnull()) & (self.df['txpool_current'] == 1)) | (self.df['block_mined'] > deleteBlock_mined)]
+                #self.df = self.df.drop('txpool_current', axis=1)
+            #console.info("Pruned txpool by " + str(dfCount - len(self.df)) + " dataframes.")
         else:
             console.info("Txpool was not prunned, not enough dataframes " + str(len(self.df)) + "/2500.")
 

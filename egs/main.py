@@ -62,17 +62,18 @@ def master_control(args):
             alltx.update_txblock(txpool.txpool_block, blockdata, predictiontable, gaspricereport.gprecs, submitted_30mago.nomine_gp) 
         
             #always make json report
-            try:
-                console.info("Generating summary reports for web...")
-                report = SummaryReport(alltx, blockdata)
-                console.info("Writing summary reports for web...")
-                report.write_report()
-            except Exception as e:
-                logging.exception(e)
-                console.info("Report Summary Generation failed, see above error ^^")
-
-            gaspricereport.write_to_json()
-            predictiontable.write_to_json(txpool)
+            if ((alltx.process_block % 2) == 0):
+                try:
+                    console.info("Generating summary reports for web...")
+                    report = SummaryReport(alltx, blockdata)
+                    console.info("Writing summary reports for web...")
+                    report.write_report()
+                    #make json for frontend
+                    gaspricereport.write_to_json()
+                    predictiontable.write_to_json(txpool)
+                except Exception as e:
+                    logging.exception(e)
+                    console.info("Report Summary Generation failed, see above error ^^")
 
             console.info("Saving 'alltx' sate to MySQL...")
             alltx.write_to_sql(txpool)
@@ -82,7 +83,7 @@ def master_control(args):
             #always prune data, drive is fast enough to manage
             console.info("Pruning dataframes/mysql from getting too large...")
             blockdata.prune(alltx.process_block)
-            #alltx.prune(txpool)
+            alltx.prune(txpool)
             txpool.prune(alltx.process_block)
 
             #update counter
