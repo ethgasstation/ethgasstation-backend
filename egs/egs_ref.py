@@ -374,8 +374,8 @@ class AllTxContainer():
                             self.pending_entries = self.pending_filter.get_new_entries()
                             break
                         except:
-                            console.info("Pending transaction filter failed, retry within 1s...")
-                            time.sleep(1)
+                            console.info("Pending transaction filter failed, retry within 2s...")
+                            time.sleep(2)
 
                 current_block = web3.eth.blockNumber
 
@@ -397,7 +397,7 @@ class AllTxContainer():
                     console.info("Got " + str(len(self.new_tx_list) - self.txlenCount)  + " new peding tx'es, now processing block " + str(self.process_block))
                     return
                 else:
-                    time.sleep(1)
+                    time.sleep(0.5)
         except Exception as e:
             console.warn(e)
 
@@ -828,10 +828,20 @@ class GasPriceReport():
             console.error("write_to_json: Exception caught: " + str(e))
 
 class OutputManager():
-    def __init__(self):
+    def __init__(self, export_location):
+        self.export_location = export_location
         self.handleGacefullHalt()
     def handleGacefullHalt(self):
         console.log("handleGacefullHalt => Export Location" + str(self.export_location))
+        halt_file = Path(self.export_location + "/haltFile")
+
+        #if halt_file.exists():
+        #    timeout = 180
+        #    while halt_file.exists():
+        #        time.sleep(1)
+        #else:
+        #    console.log("Halt File Was Not Found.")
+
         #global exporter
         #try:
         #    exporter.write_json('haltFile', [])
