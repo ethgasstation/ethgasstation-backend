@@ -27,6 +27,7 @@ def master_control(args):
 
     while True:
         try:
+            handleGacefullHalt()
             #get the hashes in the current txpool
             txpool.append_current_txp() 
             #add new pending transactions until new block arrives

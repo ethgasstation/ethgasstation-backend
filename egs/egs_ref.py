@@ -21,6 +21,8 @@ from .modelparams.constants import *
 from .jsonexporter import JSONExporter, JSONExporterException
 from .report_generator import SummaryReport
 from .txbatch import TxBatch
+from pathlib import Path
+import os.path
 import egs.settings
 egs.settings.load_settings()
 connstr = egs.settings.get_mysql_connstr()
@@ -824,4 +826,12 @@ class GasPriceReport():
             exporter.write_json('ethgasAPI', self.gprecs)
         except Exception as e:
             console.error("write_to_json: Exception caught: " + str(e))
+    
+    def handleGacefullHalt(self):
+        console.log("handleGacefullHalt => Export Location" + str(self.export_location))
+        #global exporter
+        #try:
+        #    exporter.write_json('haltFile', [])
+        #except Exception as e:
+        #    console.error("haltFile: Exception caught: " + str(e))
 
