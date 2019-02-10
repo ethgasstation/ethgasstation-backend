@@ -826,7 +826,10 @@ class GasPriceReport():
             exporter.write_json('ethgasAPI', self.gprecs)
         except Exception as e:
             console.error("write_to_json: Exception caught: " + str(e))
-    
+
+class OutputManager():
+    def __init__(self):
+        self.handleGacefullHalt()
     def handleGacefullHalt(self):
         console.log("handleGacefullHalt => Export Location" + str(self.export_location))
         #global exporter

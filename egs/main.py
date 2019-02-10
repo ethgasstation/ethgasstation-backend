@@ -19,6 +19,7 @@ def master_control(args):
     blockdata = BlockDataContainer()
     alltx = AllTxContainer()
     txpool = TxpoolContainer()
+    outputMng = OutputManager()
     array5m = []
     array30m = []
     console.info("Type ctl-c to quit and save data to mysql")
@@ -27,7 +28,7 @@ def master_control(args):
 
     while True:
         try:
-            handleGacefullHalt()
+            outputMng.handleGacefullHalt()
             #get the hashes in the current txpool
             txpool.append_current_txp() 
             #add new pending transactions until new block arrives
