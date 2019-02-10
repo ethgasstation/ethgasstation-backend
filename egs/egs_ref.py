@@ -202,13 +202,23 @@ class TxpoolContainer ():
         txpdfCount = len(self.txpool_df)
         maxDepth = 5000
         maxTxCount = 1000000
+        minTxCount = 900000
         if txpdfCount > maxTxCount and block > maxDepth:
             console.info("Pruning txpool dataframes (" + str(txpdfCount) + ") used in analysis methods starting at block " + str(block) + ".")
-            blockDepth = maxDepth
-            while blockDepth > 0 and len(self.txpool_df) > maxTxCount:
-                self.txpool_df = self.txpool_df.loc[self.txpool_df['block'] > (block-blockDepth)]
-                blockDepth -= 1
-            console.info("Pruned " + str(txpdfCount - len(self.txpool_df)) + " txpool dataframes up to block height of " + str(blockDepth) + ".")
+            #blockDepth = maxDepth
+            
+            currentDepth = 0
+            currentLen = 0
+            while currentDepth < maxDepth and currentLen < minTxCount:
+                currentLen = len(self.txpool_df.loc[self.txpool_df['block'] > (block-currentDepth)])
+                currentDepth += 1
+
+            self.txpool_df = self.txpool_df.loc[self.txpool_df['block'] > (block-(currentDepth - 1)))]
+
+            #while blockDepth > 0 and len(self.txpool_df) > maxTxCount:
+            #    self.txpool_df = self.txpool_df.loc[self.txpool_df['block'] > (block-blockDepth)]
+            #    blockDepth -= 1
+            console.info("Pruned " + str(txpdfCount - len(self.txpool_df)) + " txpool dataframes up to block height of " + str(currentDepth - 1) + ".")
         else:
             console.info("Txpool dataframes were not pruned " + str(txpdfCount) + "/" + str(maxTxCount) + " or block height (" + str(block) + ") was less then " + str(maxDepth) + ".")
 
