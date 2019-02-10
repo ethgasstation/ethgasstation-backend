@@ -551,7 +551,7 @@ class AllTxContainer():
             console.info("Pruning txpool (" + str(len(self.df)) + ") at process block " + str(self.process_block) + " to keep dataframes and databases from getting too big...")
             console.info("-----------------------------------------")
             console.info(str(list(self.df.columns.values)))
-             console.info("-----------------------------------------")
+            console.info("-----------------------------------------")
             #maxCount = 25000
             #minCount = 20000
             #maxDepth = 5000
