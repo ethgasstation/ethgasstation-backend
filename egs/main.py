@@ -63,6 +63,8 @@ def master_control(args):
             #updates tx submitted at current block with data from predictiontable, gpreport- this is for storing in mysql for later optional stats models.
             alltx.update_txblock(txpool.txpool_block, blockdata, predictiontable, gaspricereport.gprecs, submitted_30mago.nomine_gp) 
         
+            outputMng.handleGacefullHalt()
+
             #always make json report
             if ((alltx.process_block % 3) == 0):
                 try:

@@ -834,20 +834,19 @@ class OutputManager():
         self.export_location = get_setting('json', 'output_location')
         self.export_location = os.path.abspath(self.export_location)
         self.handleGacefullHalt()
+
     def handleGacefullHalt(self):
-        console.log("handleGacefullHalt => Export Location" + str(self.export_location))
         halt_file = Path(self.export_location + "/haltFile")
-
-        #if halt_file.exists():
-        #    timeout = 180
-        #    while halt_file.exists():
-        #        time.sleep(1)
-        #else:
-        #    console.log("Halt File Was Not Found.")
-
-        #global exporter
-        #try:
-        #    exporter.write_json('haltFile', [])
-        #except Exception as e:
-        #    console.error("haltFile: Exception caught: " + str(e))
-
+        if halt_file.exists():
+            console.log("Halt File Was Found awaiting up to 180s")
+            timeout = 0
+            while halt_file.exists() and timeout < 180:
+                time.sleep(1)
+                timeout += 1
+            
+            if halt_file.exists():
+                halt_file.unlink()
+            
+            console.log("Halt file was removed after "+ str(timeout) + "s passed.")
+        else:
+            console.log("Halt File Was Not Found at " + str(self.export_location) + "/haltFile, processing...")
