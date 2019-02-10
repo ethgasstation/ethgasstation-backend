@@ -552,6 +552,10 @@ class AllTxContainer():
             console.info("-----------------------------------------")
             console.info(str(list(self.df.columns.values)))
             console.info("-----------------------------------------")
+            console.info(str(self.df.head(3)))
+            console.info("-----------------------------------------")
+            console.info(str(self.df.tail(3)))
+            console.info("-----------------------------------------")
             #maxCount = 25000
             #minCount = 20000
             #maxDepth = 5000
