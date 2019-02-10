@@ -545,39 +545,48 @@ class AllTxContainer():
             console.info("Not stored, 0 transactions in alltx.")
 
     def prune(self, txpool):
-        console.info("NOT Pruning txpool (" + str(len(self.df)) + ") YET.")
-        if len(self.df) > 25000:
-            dfCount = len(self.df)
-            console.info("Pruning txpool (" + str(len(self.df)) + ") at process block " + str(self.process_block) + " to keep dataframes and databases from getting too big...")
+        dfCount = len(self.df)
+        maxCount = 10000
+        if dfCount > maxCount:
+            console.info("Pruning Last values in txpool (" + str(dfCount) + ").")
+            self.df.drop(self.df.head(dfCount - maxCount).index,inplace=True) # drop last n rows
+            console.info("Pruned " + str(dfCount - len(self.df)) + " values from txpool.")
             console.info("-----------------------------------------")
             console.info(str(list(self.df.columns.values)))
+            console.info("------------NEW-LAST---------------------")
+            console.info(str(self.df.head(1)))
+            console.info("------------NEW-FIRST--------------------")
+            console.info(str(self.df.tail(1)))
             console.info("-----------------------------------------")
-            console.info(str(self.df.head(3)))
-            console.info("-----------------------------------------")
-            console.info(str(self.df.tail(3)))
-            console.info("-----------------------------------------")
-            #maxCount = 25000
-            #minCount = 20000
-            #maxDepth = 5000
-            #
-            #currentDepth = 0
-            #currentLen = 0
-            #while currentDepth < maxDepth and currentLen < minTxCount:
-            #    currentLen = len(self.txpool_df.loc[self.txpool_df['block'] > (block-currentDepth)])
-            #    currentDepth += 1
-
-            
-            #deleteBlock_mined = self.process_block - 1500
-            #deleteBlock_posted = self.process_block - 2500
-            #self.df = self.df.loc[((self.df['block_mined'].isnull()) & (self.df['block_posted'] > deleteBlock_posted)) | (self.df['block_mined'] > deleteBlock_mined)]
-            #if txpool.got_txpool:
-            #    console.info("!!! txpool.got_txpool !!!")
-            #    #self.df['txpool_current'] = self.df.index.isin(txpool.txpool_block.index).astype(int)
-            #    #self.df = self.df.loc[((self.df['block_mined'].isnull()) & (self.df['txpool_current'] == 1)) | (self.df['block_mined'] > deleteBlock_mined)]
-            #    #self.df = self.df.drop('txpool_current', axis=1)
-            console.info("Pruned txpool by " + str(dfCount - len(self.df)) + " dataframes.")
         else:
-            console.info("Txpool was not prunned, not enough dataframes " + str(len(self.df)) + "/25000.")
+            console.info("Txpool was not prunned, not enough dataframes " + str(dfCount) + "/" + str(maxCount))
+
+        #dfCount = len(self.df)
+        #if len(self.df) > 25000:
+        #    console.info("Pruning txpool (" + str(dfCount) + ") at process block " + str(self.process_block) + " to keep dataframes and databases from getting too big...")
+        #    
+        #    maxCount = 10000
+        #    minCount = 9000
+        #    maxDepth = 5000
+        #    #
+        #    currentDepth = 0
+        #    currentLen = 0
+        #    #while currentDepth < maxDepth and currentLen < minTxCount:
+        #    #    currentLen = len(self.df.loc[((self.df['block_mined'].isnull()) & (self.df['block_posted'] > deleteBlock_posted)) | (self.df['block_mined'] > deleteBlock_mined)])
+        #    #    currentDepth += 1
+#
+        #    
+        #    #deleteBlock_mined = self.process_block - 1500
+        #    #deleteBlock_posted = self.process_block - 2500
+        #    #self.df = 
+        #    #if txpool.got_txpool:
+        #    #    console.info("!!! txpool.got_txpool !!!")
+        #    #    #self.df['txpool_current'] = self.df.index.isin(txpool.txpool_block.index).astype(int)
+        #    #    #self.df = self.df.loc[((self.df['block_mined'].isnull()) & (self.df['txpool_current'] == 1)) | (self.df['block_mined'] > deleteBlock_mined)]
+        #    #    #self.df = self.df.drop('txpool_current', axis=1)
+        #    console.info("Pruned txpool by " + str(dfCount - len(self.df)) + " dataframes.")
+        #else:
+        #    console.info("Txpool was not prunned, not enough dataframes " + str(len(self.df)) + "/25000.")
 
 
 class RecentlySubmittedTxDf():
