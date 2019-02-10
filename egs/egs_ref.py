@@ -213,7 +213,7 @@ class TxpoolContainer ():
                 currentLen = len(self.txpool_df.loc[self.txpool_df['block'] > (block-currentDepth)])
                 currentDepth += 1
 
-            self.txpool_df = self.txpool_df.loc[self.txpool_df['block'] > (block-(currentDepth - 1)))]
+            self.txpool_df = self.txpool_df.loc[self.txpool_df['block'] > (block-(currentDepth - 1))]
 
             #while blockDepth > 0 and len(self.txpool_df) > maxTxCount:
             #    self.txpool_df = self.txpool_df.loc[self.txpool_df['block'] > (block-blockDepth)]
