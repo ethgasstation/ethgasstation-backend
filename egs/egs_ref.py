@@ -24,6 +24,8 @@ from .txbatch import TxBatch
 from pathlib import Path
 import os.path
 import egs.settings
+from .settings import settings_file_loaded, get_setting, get_web3_provider
+
 egs.settings.load_settings()
 connstr = egs.settings.get_mysql_connstr()
 exporter = JSONExporter()
@@ -828,8 +830,9 @@ class GasPriceReport():
             console.error("write_to_json: Exception caught: " + str(e))
 
 class OutputManager():
-    def __init__(self, export_location):
-        self.export_location = export_location
+    def __init__(self):
+        self.export_location = get_setting('json', 'output_location')
+        self.export_location = os.path.abspath(self.export_location)
         self.handleGacefullHalt()
     def handleGacefullHalt(self):
         console.log("handleGacefullHalt => Export Location" + str(self.export_location))
