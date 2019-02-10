@@ -546,7 +546,7 @@ class AllTxContainer():
 
     def prune(self, txpool):
         dfCount = len(self.df)
-        maxCount = 10000
+        maxCount = 25000
         if dfCount > maxCount:
             console.info("Pruning Last values in txpool (" + str(dfCount) + ").")
             self.df.drop(self.df.head(dfCount - maxCount).index,inplace=True) # drop last n rows
