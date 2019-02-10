@@ -376,8 +376,8 @@ class AllTxContainer():
                             self.pending_entries = self.pending_filter.get_new_entries()
                             break
                         except:
-                            console.info("Pending transaction filter failed, retry within 2s...")
-                            time.sleep(2)
+                            console.info("Pending transaction filter failed, retry within 5s...")
+                            time.sleep(5)
 
                 current_block = web3.eth.blockNumber
 
@@ -838,9 +838,9 @@ class OutputManager():
     def handleGacefullHalt(self):
         halt_file = Path(self.export_location + "/haltFile")
         if halt_file.exists():
-            console.log("Halt File Was Found awaiting up to 180s")
+            console.log("Halt File Was Found awaiting up to 300s")
             timeout = 0
-            while halt_file.exists() and timeout < 180:
+            while halt_file.exists() and timeout < 300:
                 time.sleep(1)
                 timeout += 1
             
@@ -849,4 +849,4 @@ class OutputManager():
             
             console.log("Halt file was removed after "+ str(timeout) + "s passed.")
         else:
-            console.log("Halt File Was Not Found at " + str(self.export_location) + "/haltFile, processing...")
+            console.log("Processing, Halt file was NOT found at " + str(self.export_location) + "/haltFile")
