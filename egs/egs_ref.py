@@ -12,6 +12,7 @@ import urllib
 import time
 import random
 import string
+import logging
 from hexbytes import HexBytes
 from sqlalchemy import create_engine, inspect
 from .output import Output, OutputException
@@ -20,7 +21,11 @@ from .modelparams.constants import *
 from .jsonexporter import JSONExporter, JSONExporterException
 from .report_generator import SummaryReport
 from .txbatch import TxBatch
+from pathlib import Path
+import os.path
 import egs.settings
+from .settings import settings_file_loaded, get_setting, get_web3_provider
+
 egs.settings.load_settings()
 connstr = egs.settings.get_mysql_connstr()
 exporter = JSONExporter()
@@ -198,9 +203,29 @@ class TxpoolContainer ():
             console.warn("txpool block empty")
     
     def prune(self, block):
-        console.info("Pruning txpool dataframe (" + str(len(self.txpool_df)) + ") used in analysis methods...")
-        self.txpool_df = self.txpool_df.loc[self.txpool_df['block'] > (block-1500)]
-        console.info("Pruned txpool dataframe (" + str(len(self.txpool_df)) + ").")
+        txpdfCount = len(self.txpool_df)
+        maxDepth = 5000
+        maxTxCount = 1000000
+        minTxCount = 900000
+        if txpdfCount > maxTxCount and block > maxDepth:
+            console.info("Pruning txpool dataframes (" + str(txpdfCount) + ") used in analysis methods starting at block " + str(block) + ".")
+            #blockDepth = maxDepth
+            
+            currentDepth = 0
+            currentLen = 0
+            while currentDepth < maxDepth and currentLen < minTxCount:
+                currentLen = len(self.txpool_df.loc[self.txpool_df['block'] > (block-currentDepth)])
+                currentDepth += 1
+
+            self.txpool_df = self.txpool_df.loc[self.txpool_df['block'] > (block-(currentDepth - 1))]
+
+            #while blockDepth > 0 and len(self.txpool_df) > maxTxCount:
+            #    self.txpool_df = self.txpool_df.loc[self.txpool_df['block'] > (block-blockDepth)]
+            #    blockDepth -= 1
+            console.info("Pruned " + str(txpdfCount - len(self.txpool_df)) + " txpool dataframes up to block height of " + str(currentDepth - 1) + ".")
+        else:
+            console.info("Txpool dataframes were not pruned " + str(txpdfCount) + "/" + str(maxTxCount) + " or block height (" + str(block) + ") was less then " + str(maxDepth) + ".")
+
          
 class BlockDataContainer():
     """Handles block-level dataframe and its processing"""
@@ -276,18 +301,23 @@ class BlockDataContainer():
     def write_to_sql(self):
         console.info("Writing blockdata (" + str(len(self.blockdata_df)) + ") to mysql for analysis...")
         if len(self.blockdata_df) > 0:
-            self.blockdata_df = self.blockdata_df.sort_values(by=['block_number'], ascending=False)
-            self.blockdata_df = self.blockdata_df.head(5000)
-            self.blockdata_df.to_sql(con=engine, name='blockdata2', if_exists='replace', index=False)
-            console.info("Wrote " + str(len(self.blockdata_df)) + " blocks to mysql")
+            bdf = self.blockdata_df.copy()
+            bdf = bdf.sort_values(by=['block_number'], ascending=False)
+            bdf = bdf.head(5000)
+            bdf.to_sql(con=engine, name='blockdata2', if_exists='replace', index=False)
+            console.info("Wrote " + str(len(bdf)) + " blocks to mysql")
         else:
             console.info("Not stored, 0 blocks in blockdata_df.")
 
     def prune(self, block):
-        console.info("Pruning blockdata (" + str(len(self.blockdata_df)) + ") to keep dataframes and databases from getting too big...")
-        deleteBlock = block-5000
-        self.blockdata_df = self.blockdata_df.loc[self.blockdata_df['block_number'] > deleteBlock]
-        console.info("Pruned blockdata (" + str(len(self.blockdata_df)) + ").")
+        bdfCount = len(self.blockdata_df)
+        if bdfCount > 5000:
+            console.info("Pruning blockdata (" + str(bdfCount) + ") to keep dataframes and databases from getting too big...")
+            deleteBlock = block-5000
+            self.blockdata_df = self.blockdata_df.loc[self.blockdata_df['block_number'] > deleteBlock]
+            console.info("Pruned " + str(bdfCount - len(self.blockdata_df)) + " blockdata frames.")
+        else:
+            console.info("Blockdata was not prunned, not enough dataframes " + str(len(self.blockdata_df)) + "/5000")
 
 class AllTxContainer():
     """Handles transaction dataframe and analysis"""
@@ -300,15 +330,15 @@ class AllTxContainer():
         self.load_txdata()
         self.process_block = web3.eth.blockNumber
         self.new_tx_list = []
+        self.pending_entries = []
         self.pctmined_gp_last100 = pd.DataFrame()
-        
     
     def load_txdata(self):
         console.info("AllTxContainer => Load data from mysql into dataframes...")
         try:
             ins = inspect(engine)
             if 'alltx' in ins.get_table_names():
-                alltx = pd.read_sql('SELECT * from alltx order by block_posted desc limit 100000', con=engine)
+                alltx = pd.read_sql('SELECT * from alltx order by block_posted desc limit 1000000', con=engine)
                 alltx.set_index('index', drop=True, inplace=True)
                 if 'level_0' in alltx.columns:
                     self.df = alltx.drop('level_0', axis=1)
@@ -317,13 +347,14 @@ class AllTxContainer():
         except Exception as e:
             console.warn(e)
 
-
     def listen(self):
-        """listens for new pending tx and adds them to the alltx dataframe"""
+        global web3
         #Set number of transactions to sample to keep from falling behind; can be adjusted
         current_block = web3.eth.blockNumber
-        console.info ("listening for new transactions at block "+ str(current_block)+"...." )
+        console.info ("listening for new pending transactions at block "+ str(current_block)+" and adding them to the alltx dataframe...." )
         self.new_tx_list = []
+        self.new_tx_list_tmp = []
+        self.txlenCount = len(self.new_tx_list)
         try:
             while True:
                 if self.process_block < (current_block - 5):
@@ -331,21 +362,41 @@ class AllTxContainer():
                     self.process_block = current_block
                     self.forced_skips = self.forced_skips + 1
 
-                try:
-                    # console.debug("Getting filter changes...")
-                    self.new_tx_list.extend(self.pending_filter.get_new_entries())
-                except:
-                    # filters suck. The node can kill them whenever it wants.
-                    console.warn("Pending transaction filter missing, re-establishing filter")
-                    self.pending_filter = web3.eth.filter('pending')
-                    self.new_tx_list.extend(self.pending_filter.get_new_entries())
+                self.pending_entries = []
+
+                while True:
+                    try:
+                        self.pending_entries = self.pending_filter.get_new_entries() 
+                        break
+                    except:
+                        console.info("Pending transaction filter missing, re-establishing filter...")
+                        try:
+                            web3 = egs.settings.get_web3_provider()
+                            self.pending_filter = web3.eth.filter('pending')
+                            self.pending_entries = self.pending_filter.get_new_entries()
+                            break
+                        except:
+                            console.info("Pending transaction filter failed, retry within 5s...")
+                            time.sleep(5)
 
                 current_block = web3.eth.blockNumber
+
+                if (self.pending_entries is not None) and len(self.pending_entries) > 0:
+                    console.info("Found " + str(len(self.pending_entries)) + " new pending entries at block " + str(current_block))
+                    self.new_tx_list_tmp.extend(self.pending_entries)
+
+                #try:
+                #    # console.debug("Getting filter changes...")
+                #    self.new_tx_list.extend(self.pending_filter.get_new_entries())
+                #except:
+                #    # filters suck. The node can kill them whenever it wants.
+                #    console.warn("Pending transaction filter missing, re-establishing filter")
+                #    self.pending_filter = web3.eth.filter('pending')
+                #    self.new_tx_list.extend(self.pending_filter.get_new_entries())
     
                 if self.process_block < current_block:
-                    console.info('now processing block ' + str(self.process_block))
-                    #get unique txids
-                    self.new_tx_list = set(self.new_tx_list)
+                    self.new_tx_list = set(self.new_tx_list_tmp)
+                    console.info("Got " + str(len(self.new_tx_list) - self.txlenCount)  + " new peding tx'es, now processing block " + str(self.process_block))
                     return
                 else:
                     time.sleep(0.5)
@@ -472,26 +523,25 @@ class AllTxContainer():
         
 
     def write_to_sql(self, txpool):
-        """writes to sql, prevent buffer overflow errors"""
         console.info("AllTxContainer => writing df[" + str(len(self.df)) + "] to mysql to prevent buffer overflow errors...")
         if len(self.df) > 0:
             tmpdf = self.df.copy()
             tmpdf.reset_index(inplace=True)
             length = len(tmpdf)
-            chunks = int(np.ceil(length/10000))
-            if length < 10000:
+            chunks = int(np.ceil(length/1000))
+            if length < 1000:
                 tmpdf.to_sql(con=engine, name='alltx', if_exists='replace')
             else:
                 start = 0
-                stop = 9999
+                stop = 999
                 for chunck in range(0,chunks):
                     tempdf = tmpdf[start:stop]
                     if chunck == 0: 
                         tempdf.to_sql(con=engine, name='alltx', if_exists='replace')
                     else:
                         tempdf.to_sql(con=engine, name='alltx', if_exists='append')
-                    start += 10000
-                    stop += 10000
+                    start += 1000
+                    stop += 1000
                     if stop > length:
                         stop = length-1
             console.info("Wrote " + str(length) + " transactions to alltx.")
@@ -499,18 +549,14 @@ class AllTxContainer():
             console.info("Not stored, 0 transactions in alltx.")
 
     def prune(self, txpool):
-        console.info("Pruning txpool (" + str(len(self.df)) + ") to keep dataframes and databases from getting too big...")
-        deleteBlock_mined = self.process_block - 10000
-        deleteBlock_posted = self.process_block - 10000
-        self.df = self.df.loc[((self.df['block_mined'].isnull()) & (self.df['block_posted'] > deleteBlock_posted)) | (self.df['block_mined'] > deleteBlock_mined)]
-        if txpool.got_txpool:
-            self.df['txpool_current'] = self.df.index.isin(txpool.txpool_block.index).astype(int)
-            self.df = self.df.loc[((self.df['block_mined'].isnull()) & (self.df['txpool_current'] == 1)) | (self.df['block_mined'] > deleteBlock_mined)]
-            self.df = self.df.drop('txpool_current', axis=1)
-        console.info("Pruned txpool (" + str(len(self.df)) + ").")
-
-
-    
+        dfCount = len(self.df)
+        maxCount = 100000
+        if dfCount > maxCount:
+            console.info("Pruning Last values in txpool (" + str(dfCount) + ").")
+            self.df.drop(self.df.head(dfCount - maxCount).index,inplace=True) # drop last n rows
+            console.info("Pruned " + str(dfCount - len(self.df)) + " values from txpool [ " + str(self.df.head(1)["block_posted"]) + " - " + str(self.df.tail(1)["block_posted"]) + " ].")
+        else:
+            console.info("Txpool was not prunned, not enough dataframes " + str(dfCount) + "/" + str(maxCount))
 
 class RecentlySubmittedTxDf():
     """Df for holding recently submitted tx to track clearing from txpool"""
@@ -783,3 +829,24 @@ class GasPriceReport():
         except Exception as e:
             console.error("write_to_json: Exception caught: " + str(e))
 
+class OutputManager():
+    def __init__(self):
+        self.export_location = get_setting('json', 'output_location')
+        self.export_location = os.path.abspath(self.export_location)
+        self.handleGacefullHalt()
+
+    def handleGacefullHalt(self):
+        halt_file = Path(self.export_location + "/haltFile")
+        if halt_file.exists():
+            console.log("Halt File Was Found awaiting up to 300s")
+            timeout = 0
+            while halt_file.exists() and timeout < 300:
+                time.sleep(1)
+                timeout += 1
+            
+            if halt_file.exists():
+                halt_file.unlink()
+            
+            console.log("Halt file was removed after "+ str(timeout) + "s passed.")
+        else:
+            console.log("Processing, Halt file was NOT found at " + str(self.export_location) + "/haltFile")

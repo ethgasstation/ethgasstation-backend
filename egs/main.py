@@ -19,12 +19,16 @@ def master_control(args):
     blockdata = BlockDataContainer()
     alltx = AllTxContainer()
     txpool = TxpoolContainer()
+    outputMng = OutputManager()
     array5m = []
     array30m = []
     console.info("Type ctl-c to quit and save data to mysql")
+    console.info('blocks '+ str(len(blockdata.blockdata_df)))
+    console.info('txcount '+ str(len(alltx.df)))
 
     while True:
         try:
+            outputMng.handleGacefullHalt()
             #get the hashes in the current txpool
             txpool.append_current_txp() 
             #add new pending transactions until new block arrives
@@ -59,8 +63,10 @@ def master_control(args):
             #updates tx submitted at current block with data from predictiontable, gpreport- this is for storing in mysql for later optional stats models.
             alltx.update_txblock(txpool.txpool_block, blockdata, predictiontable, gaspricereport.gprecs, submitted_30mago.nomine_gp) 
         
-            #make report if enabled
-            if ((report_option is True) and (alltx.process_block % 1) == 0):
+            outputMng.handleGacefullHalt()
+
+            #always make json report
+            if ((alltx.process_block % 3) == 0):
                 try:
                     console.info("Generating summary reports for web...")
                     report = SummaryReport(alltx, blockdata)
@@ -70,6 +76,7 @@ def master_control(args):
                     logging.exception(e)
                     console.info("Report Summary Generation failed, see above error ^^")
 
+            #make json for frontend
             gaspricereport.write_to_json()
             predictiontable.write_to_json(txpool)
 
@@ -78,24 +85,18 @@ def master_control(args):
             console.info("Saving 'blockdata' sate to MySQL...")
             blockdata.write_to_sql()
 
-            if ((alltx.process_block % 1) == 0):
-                console.info("Pruning dataframes/mysql from getting too large...")
-                blockdata.prune(alltx.process_block)
-                alltx.prune(txpool)
-                txpool.prune(alltx.process_block) 
+            #always prune data, drive is fast enough to manage
+            console.info("Pruning dataframes/mysql from getting too large...")
+            blockdata.prune(alltx.process_block)
+            alltx.prune(txpool)
+            txpool.prune(alltx.process_block)
 
             #update counter
             alltx.process_block += 1
 
         except KeyboardInterrupt:
-            #write to mysql
-            response = input ("save transactions to mysql (y/n)?")
-            if (response.lower() == 'y'):
-                alltx.write_to_sql(txpool)
-                blockdata.write_to_sql()
-                sys.exit()
-            else:
-                sys.exit()
+            console.info("KeyboardInterrupt => exit...")
+            sys.exit()
 
         except Exception:
             console.error(traceback.format_exc())
