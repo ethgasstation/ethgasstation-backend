@@ -29,7 +29,7 @@ from .settings import settings_file_loaded, get_setting, get_web3_provider
 egs.settings.load_settings()
 connstr = egs.settings.get_mysql_connstr()
 exporter = JSONExporter()
-#web3 = egs.settings.get_web3_provider()
+web3 = egs.settings.get_web3_provider()
 console = Output()
 engine = create_engine(connstr, echo=False, pool_recycle=3600)
 conn = engine.connect()
