@@ -382,7 +382,7 @@ class AllTxContainer():
                     self.process_block = current_block
                     self.forced_skips = self.forced_skips + 1
 
-                #self.pending_entries = []
+                self.pending_entries = []
                 error_retry_count = 0
                 while True:
                     if error_retry_count % 20 == 0:
@@ -390,20 +390,21 @@ class AllTxContainer():
                     try:
                         web3 = egs.settings.get_web3_provider()
                         self.pending_filter = web3.eth.filter('pending')
-                        self.new_tx_list_tmp = self.pending_filter.get_all_entries() 
+                        #self.new_tx_list_tmp = self.pending_filter.get_all_entries() 
+                        self.pending_entries = self.pending_filter.get_new_entries() 
                         break
                     except:
                         error_retry_count += 1
-                        time.sleep(0.5)
+                        time.sleep(1)
                         #if error_retry_count % 20 == 0:
                         #    console.info(eIn)
                         #    #console.info("Pending transaction filter failed, retry within 5s...")
 
                 current_block = web3.eth.blockNumber
 
-                #if (self.pending_entries is not None) and len(self.pending_entries) > 0:
-                #    console.info("Found " + str(len(self.pending_entries)) + " new pending entries at block " + str(current_block))
-                #    self.new_tx_list_tmp.extend(self.pending_entries)
+                if (self.pending_entries is not None) and len(self.pending_entries) > 0:
+                    console.info("Found " + str(len(self.pending_entries)) + " new pending entries at block " + str(current_block))
+                    self.new_tx_list_tmp.extend(self.pending_entries)
     
                 if self.process_block < current_block:
                     self.new_tx_list = set(self.new_tx_list_tmp)
