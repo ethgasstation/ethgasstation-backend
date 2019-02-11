@@ -385,23 +385,19 @@ class AllTxContainer():
                 #self.pending_entries = []
                 error_retry_count = 0
                 while True:
+                    if error_retry_count % 20 == 0:
+                        console.info("Pending transaction filter missing, re-establishing filter (" + str(error_retry_count) + ")...")
                     try:
-                        #self.pending_entries = self.pending_filter.get_new_entries() 
+                        web3 = egs.settings.get_web3_provider()
+                        self.pending_filter = web3.eth.filter('pending')
                         self.new_tx_list_tmp = self.pending_filter.get_all_entries() 
                         break
                     except:
                         error_retry_count += 1
-                        if error_retry_count % 20 == 0:
-                            console.info("Pending transaction filter missing, re-establishing filter (" + str(error_retry_count) + ")...")
-                        try:
-                            web3 = egs.settings.get_web3_provider()
-                            self.pending_filter = web3.eth.filter('pending')
-                        except:
-                            time.sleep(0.1)
-                            #if error_retry_count % 20 == 0:
-                            #    console.info(eIn)
-                            #    #console.info("Pending transaction filter failed, retry within 5s...")
-                            
+                        time.sleep(0.5)
+                        #if error_retry_count % 20 == 0:
+                        #    console.info(eIn)
+                        #    #console.info("Pending transaction filter failed, retry within 5s...")
 
                 current_block = web3.eth.blockNumber
 

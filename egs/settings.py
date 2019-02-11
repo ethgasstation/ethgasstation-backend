@@ -79,7 +79,7 @@ def get_web3_provider(protocol=None, hostname=None, port=None, timeout=None):
     if port is None:
         port = get_setting('rpc', 'port')
     
-    timeout = 5
+    timeout = 30
     
     #if timeout is None:
     #    try:
