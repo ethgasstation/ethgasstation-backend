@@ -27,18 +27,23 @@ def master_control(args):
     console.info("Type ctl-c to quit and save data to mysql")
     console.info('blocks '+ str(len(blockdata.blockdata_df)))
     console.info('txcount '+ str(len(alltx.df)))
-
+    start_time = time.time()
+    end_time = 0
     while True:
         try:
+
+            end_time = time.time()
 
             while datetime.datetime.now().second % 15 != 0:
                 time.sleep(0.1)
 
-            console.info("Started new run at: " + time.strftime("%Y,%m,%d,%H,%M,%S"))
+            console.info("Started new run at: " + time.strftime("%Y/%m/%d %H:%M:%S") + ", elapsed: " + str(end_time - start_time) + "s")
+
+            start_time = time.time()
 
             outputMng.handleGacefullHalt()
             #get the hashes in the current txpool
-            txpool.append_current_txp() 
+            txpool.append_current_txp()
             #add new pending transactions until new block arrives
             alltx.listen() 
             #process pending transactions
