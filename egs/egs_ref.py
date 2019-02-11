@@ -334,7 +334,6 @@ class AllTxContainer():
         self.new_tx_list = []
         self.pending_entries = []
         self.pctmined_gp_last100 = pd.DataFrame()
-        self.reinitializeWeb3()
 
     def reinitializeWeb3(self):
         while True:
@@ -384,18 +383,23 @@ class AllTxContainer():
                     self.forced_skips = self.forced_skips + 1
 
                 #self.pending_entries = []
+                error_retry_count = 0
                 while True:
                     try:
                         #self.pending_entries = self.pending_filter.get_new_entries() 
                         self.new_tx_list_tmp = self.pending_filter.get_all_entries() 
                         break
                     except:
-                        console.info("Pending transaction filter missing, re-establishing filter...")
+                        error_retry_count += 1
+                        if error_retry_count % 20 == 0:
+                            console.info("Pending transaction filter missing, re-establishing filter (" + str(error_retry_count) + ")...")
                         try:
                             web3 = egs.settings.get_web3_provider()
                             self.pending_filter = web3.eth.filter('pending')
-                        except:
-                            console.info("Pending transaction filter failed, retry within 5s...")
+                        except Exception as eIn:
+                            if error_retry_count % 20 == 0:
+                                console.info(eIn)
+                                #console.info("Pending transaction filter failed, retry within 5s...")
                             time.sleep(0.1)
 
                 current_block = web3.eth.blockNumber
