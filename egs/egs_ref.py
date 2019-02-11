@@ -396,11 +396,12 @@ class AllTxContainer():
                         try:
                             web3 = egs.settings.get_web3_provider()
                             self.pending_filter = web3.eth.filter('pending')
-                        except Exception as eIn:
-                            if error_retry_count % 20 == 0:
-                                console.info(eIn)
-                                #console.info("Pending transaction filter failed, retry within 5s...")
+                        except:
                             time.sleep(0.1)
+                            #if error_retry_count % 20 == 0:
+                            #    console.info(eIn)
+                            #    #console.info("Pending transaction filter failed, retry within 5s...")
+                            
 
                 current_block = web3.eth.blockNumber
 

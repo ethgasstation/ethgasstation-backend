@@ -78,11 +78,14 @@ def get_web3_provider(protocol=None, hostname=None, port=None, timeout=None):
         hostname = get_setting('rpc', 'hostname')
     if port is None:
         port = get_setting('rpc', 'port')
-    if timeout is None:
-        try:
-            timeout = int(get_setting('rpc', 'timeout'))
-        except KeyError:
-            timeout = 15 # default timeout is 15 seconds
+    
+    timeout = 5
+    
+    #if timeout is None:
+    #    try:
+    #        timeout = int(get_setting('rpc', 'timeout'))
+    #    except KeyError:
+    #        timeout = 15 # default timeout is 15 seconds
 
     if protocol == 'ws' or protocol == 'wss':
         provider = WebsocketProvider(
