@@ -7,6 +7,8 @@ import traceback
 import logging
 from .egs_ref import *
 from .output import Output, OutputException
+import datetime
+import time
 
 console = Output()
 
@@ -28,6 +30,12 @@ def master_control(args):
 
     while True:
         try:
+
+            while datetime.datetime.now().second % 15 != 0:
+                time.sleep(0.1)
+
+            console.info("Started new run at: " + time.strftime("%Y,%m,%d,%H,%M,%S"))
+
             outputMng.handleGacefullHalt()
             #get the hashes in the current txpool
             txpool.append_current_txp() 
@@ -66,7 +74,7 @@ def master_control(args):
             outputMng.handleGacefullHalt()
 
             #always make json report
-            if ((alltx.process_block % 3) == 0):
+            if ((alltx.process_block % 1) == 0):
                 try:
                     console.info("Generating summary reports for web...")
                     report = SummaryReport(alltx, blockdata)
