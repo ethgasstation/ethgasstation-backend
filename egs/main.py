@@ -105,19 +105,13 @@ def master_control(args):
             alltx.prune(txpool)
             txpool.prune(alltx.process_block)
 
-            if pMysqlSave.is_alive():
-                try:
-                    pMysqlSave.join()
-                except:
-                    console.info("Failed during SQL store")
-
-            outputMng.handleGacefullHalt()
-            pMysqlSave = multiprocessing.Process(target = mysqlSave)
-            pMysqlSave.start()
+            if not pMysqlSave.is_alive():
+                outputMng.handleGacefullHalt()
+                pMysqlSave = multiprocessing.Process(target = mysqlSave)
+                pMysqlSave.start()
 
             #update counter
             alltx.process_block += 1
-            
 
         except KeyboardInterrupt:
             console.info("KeyboardInterrupt => exit...")
