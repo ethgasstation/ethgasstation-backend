@@ -351,6 +351,7 @@ class AllTxContainer():
         web3 = egs.settings.get_web3_provider()
         self.pending_filter = web3.eth.filter('pending')
         current_block = web3.eth.blockNumber
+        self.process_block = current_block
         console.info ("listening for new pending transactions at block "+ str(current_block)+" and adding them to the alltx dataframe...." )
         self.new_tx_list = []
         self.new_tx_list_tmp = []
