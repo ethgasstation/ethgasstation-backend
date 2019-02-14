@@ -325,7 +325,6 @@ class AllTxContainer():
         self.df = pd.DataFrame()
         self.minedblock_tx_df = pd.DataFrame()
         self.block_obj = None
-        self.forced_skips = 0
         self.pending_filter = web3.eth.filter('pending')
         self.load_txdata()
         self.process_block = web3.eth.blockNumber
@@ -358,16 +357,16 @@ class AllTxContainer():
         self.txlenCount = len(self.new_tx_list)
         try:
             while True:
-                if self.process_block < (current_block - 5):
-                    console.warn("blocks jumped, skipping ahead")
-                    self.process_block = current_block
-                    self.forced_skips = self.forced_skips + 1
+                #if self.process_block < (current_block - 5):
+                #    console.warn("blocks jumped, skipping ahead...")
+                #    self.process_block = current_block
 
                 self.pending_entries = []
                 error_retry_count = 0
                 while True:
-                    if error_retry_count % 30 == 0:
-                        console.info("Pending transaction filter missing, re-establishing filter (" + str(error_retry_count) + ")...")
+                    if error_retry_count != 0 and error_retry_count % 10 == 0:
+                        console.info("Pending transaction filter missing, re-establishing filter (" + str(error_retry_count) + "), processing block: (" + str(self.process_block) + ")...")
+                        time.sleep(5)
                     try:
                         #self.new_tx_list_tmp = self.pending_filter.get_all_entries() 
                         self.pending_entries = self.pending_filter.get_new_entries() 
@@ -376,10 +375,6 @@ class AllTxContainer():
                         error_retry_count += 1
                         web3 = egs.settings.get_web3_provider()
                         self.pending_filter = web3.eth.filter('pending')
-                        time.sleep(1)
-                        #if error_retry_count % 20 == 0:
-                        #    console.info(eIn)
-                        #    #console.info("Pending transaction filter failed, retry within 5s...")
 
                 current_block = web3.eth.blockNumber
 
@@ -392,6 +387,7 @@ class AllTxContainer():
                     console.info("Got " + str(len(self.new_tx_list) - self.txlenCount)  + " new peding tx'es, now processing block " + str(self.process_block))
                     return
                 else:
+                    self.process_block = current_block
                     time.sleep(0.5)
         except Exception as e:
             console.warn(e)
