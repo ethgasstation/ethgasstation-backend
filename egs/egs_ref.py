@@ -362,7 +362,6 @@ class AllTxContainer():
                 #    console.warn("blocks jumped, skipping ahead...")
                 #    self.process_block = current_block
 
-                self.pending_entries = []
                 error_retry_count = 0
                 while True:
                     if error_retry_count != 0 and error_retry_count % 10 == 0:
@@ -370,7 +369,7 @@ class AllTxContainer():
                         time.sleep(5)
                     try:
                         #self.new_tx_list_tmp = self.pending_filter.get_all_entries() 
-                        self.pending_entries = self.pending_filter.get_new_entries() 
+                        self.new_tx_list_tmp.extend(self.pending_filter.get_new_entries())
                         break
                     except:
                         error_retry_count += 1
@@ -379,10 +378,6 @@ class AllTxContainer():
 
                 current_block = web3.eth.blockNumber
 
-                if (self.pending_entries is not None) and len(self.pending_entries) > 0:
-                    console.info("Found " + str(len(self.pending_entries)) + " new pending entries at block " + str(current_block))
-                    self.new_tx_list_tmp.extend(self.pending_entries)
-    
                 if self.process_block < current_block:
                     self.new_tx_list = set(self.new_tx_list_tmp)
                     console.info("Got " + str(len(self.new_tx_list) - self.txlenCount)  + " new peding tx'es, now processing block " + str(self.process_block))

@@ -9,6 +9,7 @@ from .egs_ref import *
 from .output import Output, OutputException
 import datetime
 import time
+from multiprocessing import Process
 
 console = Output()
 
@@ -29,6 +30,15 @@ def master_control(args):
     console.info('txcount '+ str(len(alltx.df)))
     start_time = time.time()
     end_time = 0
+
+    def mysqlSave():
+        console.info("Saving 'alltx' sate to MySQL...")
+        alltx.write_to_sql(txpool)
+        console.info("Saving 'blockdata' sate to MySQL...")
+        blockdata.write_to_sql()
+
+    pMysqlSave = Process(target=mysqlSave)
+
     while True:
         try:
 
@@ -41,7 +51,6 @@ def master_control(args):
 
             start_time = time.time()
 
-            outputMng.handleGacefullHalt()
             #get the hashes in the current txpool
             txpool.append_current_txp()
             #add new pending transactions until new block arrives
@@ -75,28 +84,20 @@ def master_control(args):
             array30m = gaspricereport.array30m 
             #updates tx submitted at current block with data from predictiontable, gpreport- this is for storing in mysql for later optional stats models.
             alltx.update_txblock(txpool.txpool_block, blockdata, predictiontable, gaspricereport.gprecs, submitted_30mago.nomine_gp) 
-        
-            outputMng.handleGacefullHalt()
 
             #always make json report
-            if ((alltx.process_block % 1) == 0):
-                try:
-                    console.info("Generating summary reports for web...")
-                    report = SummaryReport(alltx, blockdata)
-                    console.info("Writing summary reports for web...")
-                    report.write_report()
-                except Exception as e:
-                    logging.exception(e)
-                    console.info("Report Summary Generation failed, see above error ^^")
+            try:
+                console.info("Generating summary reports for web...")
+                report = SummaryReport(alltx, blockdata)
+                console.info("Writing summary reports for web...")
+                report.write_report()
+            except Exception as e:
+                logging.exception(e)
+                console.info("Report Summary Generation failed, see above error ^^")
 
             #make json for frontend
             gaspricereport.write_to_json()
             predictiontable.write_to_json(txpool)
-
-            console.info("Saving 'alltx' sate to MySQL...")
-            alltx.write_to_sql(txpool)
-            console.info("Saving 'blockdata' sate to MySQL...")
-            blockdata.write_to_sql()
 
             #always prune data, drive is fast enough to manage
             console.info("Pruning dataframes/mysql from getting too large...")
@@ -104,8 +105,16 @@ def master_control(args):
             alltx.prune(txpool)
             txpool.prune(alltx.process_block)
 
+            pMysqlSave.join()
+            outputMng.handleGacefullHalt()
+            
+            #recreate processess if they were terminated
+            pMysqlSave = Process(target=mysqlSave)
+			pMysqlSave.start()
+
             #update counter
             alltx.process_block += 1
+            
 
         except KeyboardInterrupt:
             console.info("KeyboardInterrupt => exit...")
