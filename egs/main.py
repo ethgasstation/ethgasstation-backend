@@ -9,7 +9,7 @@ from .egs_ref import *
 from .output import Output, OutputException
 import datetime
 import time
-from multiprocessing import Process
+import multiprocessing
 
 console = Output()
 
@@ -37,7 +37,7 @@ def master_control(args):
         console.info("Saving 'blockdata' sate to MySQL...")
         blockdata.write_to_sql()
 
-    pMysqlSave = Process(target=mysqlSave)
+    pMysqlSave = multiprocessing.Process(target = mysqlSave)
 
     while True:
         try:
@@ -107,10 +107,8 @@ def master_control(args):
 
             pMysqlSave.join()
             outputMng.handleGacefullHalt()
-            
-            #recreate processess if they were terminated
-            pMysqlSave = Process(target=mysqlSave)
-			pMysqlSave.start()
+            pMysqlSave = multiprocessing.Process(target = mysqlSave)
+            pMysqlSave.start()
 
             #update counter
             alltx.process_block += 1
