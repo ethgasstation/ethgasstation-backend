@@ -37,7 +37,7 @@ def master_control(args):
         console.info("Saving 'blockdata' sate to MySQL...")
         blockdata.write_to_sql()
 
-    pMysqlSave = None
+    pMysqlSave = multiprocessing.Process(target = mysqlSave)
 
     while True:
         try:
@@ -105,7 +105,7 @@ def master_control(args):
             alltx.prune(txpool)
             txpool.prune(alltx.process_block)
 
-            if not (pMysqlSave is None):
+            if pMysqlSave.is_alive():
                 try:
                     pMysqlSave.join()
                 except:
