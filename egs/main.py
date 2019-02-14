@@ -37,7 +37,7 @@ def master_control(args):
         console.info("Saving 'blockdata' sate to MySQL...")
         blockdata.write_to_sql()
 
-    pMysqlSave = multiprocessing.Process(target = mysqlSave)
+    pMysqlSave = None
 
     while True:
         try:
@@ -105,7 +105,12 @@ def master_control(args):
             alltx.prune(txpool)
             txpool.prune(alltx.process_block)
 
-            pMysqlSave.join()
+            if pMysqlSave is not None
+                try:
+                    pMysqlSave.join()
+                except:
+                    console.info("Failed during SQL store")
+
             outputMng.handleGacefullHalt()
             pMysqlSave = multiprocessing.Process(target = mysqlSave)
             pMysqlSave.start()
