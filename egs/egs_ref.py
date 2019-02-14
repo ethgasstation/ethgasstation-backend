@@ -248,7 +248,6 @@ class BlockDataContainer():
             except Exception as e:
                 console.warn(e)
 
-
     def process_block_data (self, block_transactions_df, block_obj):
         """gets block-level summary data and append to block dataframe"""
         console.debug("Processing block data...")
@@ -375,6 +374,7 @@ class AllTxContainer():
                         error_retry_count += 1
                         web3 = egs.settings.get_web3_provider()
                         self.pending_filter = web3.eth.filter('pending')
+                        time.sleep(1)
 
                 current_block = web3.eth.blockNumber
 

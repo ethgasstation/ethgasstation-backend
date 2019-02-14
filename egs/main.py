@@ -29,6 +29,7 @@ def master_control(args):
     console.info('blocks '+ str(len(blockdata.blockdata_df)))
     console.info('txcount '+ str(len(alltx.df)))
     start_time = time.time()
+    op_time = time.time()
     end_time = 0
 
     def mysqlSave():
@@ -41,45 +42,75 @@ def master_control(args):
 
     while True:
         try:
-            end_time = time.time()
-            console.info("Started new run at: " + time.strftime("%Y/%m/%d %H:%M:%S") + ", elapsed: " + str(end_time - start_time) + "s")
+            console.info("Started new run at: " + time.strftime("%Y/%m/%d %H:%M:%S") + ", elapsed: " + str(time.time() - start_time) + "s")
             start_time = time.time()
 
-            #get the hashes in the current txpool
+            op_time = time.time()
             txpool.append_current_txp()
-            #add new pending transactions until new block arrives
+            console.info("*** get the hashes in the current txpool [" + str(time.time() - op_time) + "] s")
+
+            op_time = time.time()
             alltx.listen() 
-            #process pending transactions
+            console.info("*** add new pending transactions until new block arrives [" + str(time.time() - op_time) + "] s")
+
+            op_time = time.time()
             alltx.process_submitted_block()
-            #process blocks mined transactions
+            console.info("*** process pending transactions [" + str(time.time() - op_time) + "] s")
+
+            op_time = time.time()
             alltx.process_mined_transactions() 
-            #create summary stats for mined block
+            console.info("*** process blocks mined transactions [" + str(time.time() - op_time) + "] s")
+
+            op_time = time.time()
             blockdata.process_block_data(alltx.minedblock_tx_df, alltx.block_obj)
-            #create summary stats for last 200 blocks 
+            console.info("*** create summary stats for mined block [" + str(time.time() - op_time) + "] s")
+
+            op_time = time.time()
             blockdata.analyze_last200blocks(alltx.process_block) 
-             # create summary stats for transactions in last 100 blocks
+            console.info("*** create summary stats for last 200 blocks [" + str(time.time() - op_time) + "] s")
+
+            op_time = time.time()
             alltx.analyzetx_last100blocks()
-            #stats for tx in txpool
-            txpool.make_txpool_block(alltx.process_block, alltx.df) 
-            #stats for transactions submitted ~ 5m ago
-            submitted_5mago = RecentlySubmittedTxDf('5mago', alltx.process_block, 10, 50, 2000000, alltx.df, txpool) 
-            #stats for transactions submitted ~ 30m ago
+            console.info("*** create summary stats for transactions in last 100 blocks [" + str(time.time() - op_time) + "] s")
+
+            op_time = time.time()
+            txpool.make_txpool_block(alltx.process_block, alltx.df)
+            console.info("*** stats for tx in txpool [" + str(time.time() - op_time) + "] s")
+
+            op_time = time.time()
+            submitted_5mago = RecentlySubmittedTxDf('5mago', alltx.process_block, 10, 50, 2000000, alltx.df, txpool)
+            console.info("*** stats for transactions submitted ~ 5m ago [" + str(time.time() - op_time) + "] s")
+
+            op_time = time.time()
             submitted_30mago = RecentlySubmittedTxDf('30mago', alltx.process_block, 60, 100, 2000000, alltx.df, txpool) 
-            #make a prediction table by gas price
-            predictiontable = PredictionTable(blockdata, alltx, txpool, submitted_5mago.df, submitted_30mago.df) 
-            #make the gas price report
+            console.info("*** stats for transactions submitted ~ 30m ago [" + str(time.time() - op_time) + "] s")
+
+            op_time = time.time()
+            predictiontable = PredictionTable(blockdata, alltx, txpool, submitted_5mago.df, submitted_30mago.df)
+            console.info("*** make a prediction table by gas price [" + str(time.time() - op_time) + "] s")
+
+            op_time = time.time()
             gaspricereport = GasPriceReport(predictiontable.predictiondf, blockdata, submitted_5mago, submitted_30mago, array5m, array30m, alltx.process_block) 
-            #make predicted wait times
+            console.info("*** make the gas price report [" + str(time.time() - op_time) + "] s")
+
+            op_time = time.time()
             predictiontable.get_predicted_wait(gaspricereport, submitted_30mago.nomine_gp)
             gaspricereport.get_wait(predictiontable.predictiondf)
-            #hold recent avg gp rec
-            array5m = gaspricereport.array5m 
-            #hold recent safelow gp rec
-            array30m = gaspricereport.array30m 
-            #updates tx submitted at current block with data from predictiontable, gpreport- this is for storing in mysql for later optional stats models.
-            alltx.update_txblock(txpool.txpool_block, blockdata, predictiontable, gaspricereport.gprecs, submitted_30mago.nomine_gp) 
+            console.info("*** make predicted wait times [" + str(time.time() - op_time) + "] s")
 
-            #always make json report
+            op_time = time.time()
+            array5m = gaspricereport.array5m 
+            console.info("*** hold recent avg gp rec [" + str(time.time() - op_time) + "] s")
+
+            op_time = time.time()
+            array30m = gaspricereport.array30m 
+            console.info("*** hold recent safelow gp rec [" + str(time.time() - op_time) + "] s")
+
+            op_time = time.time()
+            alltx.update_txblock(txpool.txpool_block, blockdata, predictiontable, gaspricereport.gprecs, submitted_30mago.nomine_gp) 
+            console.info("*** updates tx submitted at current block with data from predictiontable, gpreport- this is for storing in mysql for later optional stats models [" + str(time.time() - op_time) + "] s")
+
+            op_time = time.time()
             try:
                 console.info("Generating summary reports for web...")
                 report = SummaryReport(alltx, blockdata)
@@ -88,16 +119,18 @@ def master_control(args):
             except Exception as e:
                 logging.exception(e)
                 console.info("Report Summary Generation failed, see above error ^^")
+            console.info("*** always make json report [" + str(time.time() - op_time) + "] s")
 
-            #make json for frontend
+            op_time = time.time()
             gaspricereport.write_to_json()
             predictiontable.write_to_json(txpool)
+            console.info("*** make json for frontend [" + str(time.time() - op_time) + "] s")
 
-            #always prune data, drive is fast enough to manage
-            console.info("Pruning dataframes/mysql from getting too large...")
+            op_time = time.time()
             blockdata.prune(alltx.process_block)
             alltx.prune(txpool)
             txpool.prune(alltx.process_block)
+            console.info("*** Pruning dataframes/mysql from getting too large [" + str(time.time() - op_time) + "] s")
 
             if not pMysqlSave.is_alive():
                 outputMng.handleGacefullHalt()
