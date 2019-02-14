@@ -105,7 +105,7 @@ def master_control(args):
             alltx.prune(txpool)
             txpool.prune(alltx.process_block)
 
-            if pMysqlSave is not None
+            if not (pMysqlSave is None)
                 try:
                     pMysqlSave.join()
                 except:
