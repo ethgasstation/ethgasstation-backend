@@ -41,14 +41,8 @@ def master_control(args):
 
     while True:
         try:
-
             end_time = time.time()
-
-            while datetime.datetime.now().second % 15 != 0:
-                time.sleep(0.1)
-
             console.info("Started new run at: " + time.strftime("%Y/%m/%d %H:%M:%S") + ", elapsed: " + str(end_time - start_time) + "s")
-
             start_time = time.time()
 
             #get the hashes in the current txpool
