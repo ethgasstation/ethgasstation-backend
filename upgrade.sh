@@ -14,6 +14,8 @@ set -e
 echo "####################################"
 echo "# ETH GAS STARTION BACKEND UPGRADE #"
 echo "####################################"
+echo "Replica PUBLIC IP Address:"
+dig +short myip.opendns.com @resolver1.opendns.com
 
 rm -v /usr/local/SettleFinance/ethgasstation-backend/settings.classic.conf || echo "Config file was probably already removed.";
 

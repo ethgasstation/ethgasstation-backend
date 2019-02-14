@@ -13,7 +13,7 @@ import time
 console = Output()
 
 def master_control(args):
-    console.info("ETH Gas Station, Settle Finance Mod v0.2")
+    console.info("ETH Gas Station, Settle Finance Mod v0.3")
     report_option = False
     if args.generate_report is True:
         report_option = True

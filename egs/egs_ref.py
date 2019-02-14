@@ -121,7 +121,6 @@ class TxpoolContainer ():
 
     def _get_pending_tx_hashes(self, try_methods=True):
         """gets pending transaction hashes and autodetects method for doing so"""
-        web3 = egs.settings.get_web3_provider()
         try:
             hashlist = []
             if self.pending_method == 'geth':
@@ -137,6 +136,7 @@ class TxpoolContainer ():
                     hashlist.append(tx_obj['hash'])
                 return hashlist
         except ValueError as ve:
+            web3 = egs.settings.get_web3_provider()
             if ve.args[0]['code']==-32601: # method not found
                 if try_methods:
                     self.pending_method = {'geth':'parity','parity':'geth'}[self.pending_method]
@@ -146,7 +146,6 @@ class TxpoolContainer ():
     
     def append_current_txp(self):
         """gets list of all txhash in txpool at block and appends to dataframe"""
-        web3 = egs.settings.get_web3_provider()
         current_block = web3.eth.blockNumber
         try:
             console.info("getting txpool hashes at block " +str(current_block) + " ...")
@@ -158,6 +157,7 @@ class TxpoolContainer ():
         except Exception as e:
             console.warn(e)
             console.warn("txpool empty")
+            web3 = egs.settings.get_web3_provider()
     
     def make_txpool_block(self, block, alltx):
         """gets txhash from all transactions in txpool at block and merges the data from alltx"""
@@ -334,23 +334,6 @@ class AllTxContainer():
         self.new_tx_list = []
         self.pending_entries = []
         self.pctmined_gp_last100 = pd.DataFrame()
-
-    def reinitializeWeb3(self):
-        while True:
-            try:
-                self.pending_filter.get_all_entries()
-                self.process_block = web3.eth.blockNumber
-                break
-            except:
-                console.info("AllTxContainer web3 reinitialization failed...")
-                try:
-                    web3 = egs.settings.get_web3_provider()
-                    self.pending_filter = web3.eth.filter('pending')
-                    self.process_block = web3.eth.blockNumber
-                    break
-                except:
-                    console.info("AllTxContainer web3 re-try reinitialization...")
-                    time.sleep(1)
     
     def load_txdata(self):
         console.info("AllTxContainer => Load data from mysql into dataframes...")
@@ -370,7 +353,6 @@ class AllTxContainer():
         #Set number of transactions to sample to keep from falling behind; can be adjusted
         web3 = egs.settings.get_web3_provider()
         self.pending_filter = web3.eth.filter('pending')
-        time.sleep(1)
         current_block = web3.eth.blockNumber
         console.info ("listening for new pending transactions at block "+ str(current_block)+" and adding them to the alltx dataframe...." )
         self.new_tx_list = []
@@ -425,7 +407,7 @@ class AllTxContainer():
             """get tx objects and account nonces"""
             submitted_block = pd.DataFrame()
             #reestablish web3 provider
-            web3 = egs.settings.get_web3_provider()
+            
             txs = TxBatch(web3)
             try: 
                 results = txs.batchRequest('eth_getTransactionByHash', tx_hashes)
@@ -436,6 +418,7 @@ class AllTxContainer():
             except Exception as e:
                 raise e
                 console.error("Batch transaction failed.")
+                web3 = egs.settings.get_web3_provider()
             
             if len(submitted_block):
                 from_addresses = list(set(submitted_block['from_address'].tolist()))
@@ -477,7 +460,6 @@ class AllTxContainer():
         """get all mined transactions at block and update alltx df"""
         block_df = pd.DataFrame()
         mined_block_num = self.process_block - 3
-        web3 = egs.settings.get_web3_provider()
         block_obj = web3.eth.getBlock(mined_block_num, True)
         miner = block_obj.miner
         tx_hash_list = []
@@ -496,6 +478,8 @@ class AllTxContainer():
                 block_df.loc[txhash, 'gasused'] = txobject.gasUsed
         except Exception as e:
             print (e)
+            web3 = egs.settings.get_web3_provider()
+            
         #add mined data to dataframe
         mined_blockdf_seen = block_df[block_df.index.isin(self.df.index)]
         console.info('num mined in ' + str(mined_block_num)+ ' = ' + str(len(block_df)))
