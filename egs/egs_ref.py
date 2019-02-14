@@ -26,10 +26,10 @@ import os.path
 import egs.settings
 from .settings import settings_file_loaded, get_setting, get_web3_provider
 
+web3 = egs.settings.get_web3_provider()
 egs.settings.load_settings()
 connstr = egs.settings.get_mysql_connstr()
 exporter = JSONExporter()
-web3 = egs.settings.get_web3_provider()
 console = Output()
 engine = create_engine(connstr, echo=False, pool_recycle=3600)
 conn = engine.connect()
@@ -136,7 +136,6 @@ class TxpoolContainer ():
                     hashlist.append(tx_obj['hash'])
                 return hashlist
         except ValueError as ve:
-            web3 = egs.settings.get_web3_provider()
             if ve.args[0]['code']==-32601: # method not found
                 if try_methods:
                     self.pending_method = {'geth':'parity','parity':'geth'}[self.pending_method]
@@ -157,7 +156,6 @@ class TxpoolContainer ():
         except Exception as e:
             console.warn(e)
             console.warn("txpool empty")
-            web3 = egs.settings.get_web3_provider()
     
     def make_txpool_block(self, block, alltx):
         """gets txhash from all transactions in txpool at block and merges the data from alltx"""
@@ -418,7 +416,6 @@ class AllTxContainer():
             except Exception as e:
                 raise e
                 console.error("Batch transaction failed.")
-                web3 = egs.settings.get_web3_provider()
             
             if len(submitted_block):
                 from_addresses = list(set(submitted_block['from_address'].tolist()))
@@ -478,8 +475,7 @@ class AllTxContainer():
                 block_df.loc[txhash, 'gasused'] = txobject.gasUsed
         except Exception as e:
             print (e)
-            web3 = egs.settings.get_web3_provider()
-            
+
         #add mined data to dataframe
         mined_blockdf_seen = block_df[block_df.index.isin(self.df.index)]
         console.info('num mined in ' + str(mined_block_num)+ ' = ' + str(len(block_df)))
