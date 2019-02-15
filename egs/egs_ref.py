@@ -345,7 +345,23 @@ class AllTxContainer():
         except Exception as e:
             console.warn(e)
 
+    def reInitWeb3(self):
+        global web3
+        error_retry_count = 0
+        while True:
+            try:
+                web3 = egs.settings.get_web3_provider()
+                time.sleep(0.5)
+                self.pending_filter = web3.eth.filter('pending')
+                time.sleep(0.5)
+                break
+            except:
+                time.sleep(1)
+                console.info("Failed web3/GETH connection reinitialization...")
+
     def listen(self):
+        global web3
+        reInitWeb3(self)
         #Set number of transactions to sample to keep from falling behind; can be adjusted
         current_block = web3.eth.blockNumber
         self.process_block = current_block
@@ -370,14 +386,7 @@ class AllTxContainer():
                         break
                     except:
                         error_retry_count += 1
-                        try:
-                            web3 = egs.settings.get_web3_provider()
-                            time.sleep(0.5)
-                            self.pending_filter = web3.eth.filter('pending')
-                            time.sleep(0.5)
-                        except:
-                            time.sleep(1)
-                            console.info("Failed web3/GETH connection reinitialization...")
+                        reInitWeb3(self)
                         if error_retry_count > 100:
                             console.info("Pending filter, 100 retries, terminating...")
                             self.new_tx_list = set(self.new_tx_list_tmp)
