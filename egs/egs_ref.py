@@ -363,7 +363,7 @@ class AllTxContainer():
 
     def listen(self):
         global web3
-        reInitWeb3(self)
+        self.reInitWeb3()
         #Set number of transactions to sample to keep from falling behind; can be adjusted
         current_block = web3.eth.blockNumber
         self.process_block = current_block
@@ -388,7 +388,7 @@ class AllTxContainer():
                         break
                     except:
                         error_retry_count += 1
-                        reInitWeb3(self)
+                        self.reInitWeb3()
                         if error_retry_count > 100:
                             console.info("Pending filter, 100 retries, terminating...")
                             self.new_tx_list = set(self.new_tx_list_tmp)
