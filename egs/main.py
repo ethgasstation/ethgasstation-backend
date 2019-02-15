@@ -48,6 +48,8 @@ def master_control(args):
             console.info("Started new run at: " + time.strftime("%Y/%m/%d %H:%M:%S") + ", elapsed: " + str(time.time() - start_time) + "s")
             start_time = time.time()
 
+            alltx.reInitWeb3()
+
             op_time = time.time()
             txpool.append_current_txp()
             console.info("*** get the hashes in the current txpool [" + str(time.time() - op_time) + "] s")
@@ -135,6 +137,7 @@ def master_control(args):
             txpool.prune(alltx.process_block)
             console.info("*** Pruning dataframes/mysql from getting too large [" + str(time.time() - op_time) + "] s")
 
+            minute
             if not pMysqlSave.is_alive():
                 outputMng.handleGacefullHalt()
                 pMysqlSave = multiprocessing.Process(target = mysqlSave)

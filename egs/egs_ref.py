@@ -364,7 +364,7 @@ class AllTxContainer():
 
     def listen(self):
         #Set number of transactions to sample to keep from falling behind; can be adjusted
-        current_block = self.reInitWeb3()
+        current_block = web3.eth.blockNumber #self.reInitWeb3()
         self.process_block = current_block
         console.info ("listening for new pending transactions at block "+ str(current_block)+" and adding them to the alltx dataframe...." )
         self.new_tx_list = []
