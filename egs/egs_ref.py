@@ -324,7 +324,7 @@ class AllTxContainer():
         self.df = pd.DataFrame()
         self.minedblock_tx_df = pd.DataFrame()
         self.block_obj = None
-        self.pending_filter = web3.eth.filter('pending')
+        self.pending_filter = None
         self.load_txdata()
         self.process_block = web3.eth.blockNumber
         self.new_tx_list = []
