@@ -65,3 +65,28 @@ In the Docker service, the Python script will dump data to JSON on Redis.
 You will need to update your settings.conf to the internal hostnames
 available for MariaDB, Redis, and geth or parity, respectively within your
 infrastructure. 
+
+
+### Deployment
+
+Ensure latest urllib3 is installed
+
+
+pip install git+https://github.com/shazow/urllib3
+
+
+or if that doesn't help upgrade requirements.txt, then
+
+cd /usr/local/SettleFinance/ethgasstation-backend
+pip install -r requirements.txt
+
+
+
+
+
+
+
+
+
+
+

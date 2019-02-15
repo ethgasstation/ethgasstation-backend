@@ -33,10 +33,13 @@ def master_control(args):
     end_time = 0
 
     def mysqlSave():
-        console.info("Saving 'alltx' sate to MySQL...")
-        alltx.write_to_sql(txpool)
-        console.info("Saving 'blockdata' sate to MySQL...")
-        blockdata.write_to_sql()
+        try:
+            console.info("Saving 'alltx' sate to MySQL...")
+            alltx.write_to_sql(txpool)
+            console.info("Saving 'blockdata' sate to MySQL...")
+            blockdata.write_to_sql()
+        except:
+            console.info("FAILED Saving data to MySQL...")
 
     pMysqlSave = multiprocessing.Process(target = mysqlSave)
 
@@ -44,6 +47,8 @@ def master_control(args):
         try:
             console.info("Started new run at: " + time.strftime("%Y/%m/%d %H:%M:%S") + ", elapsed: " + str(time.time() - start_time) + "s")
             start_time = time.time()
+
+            alltx.reInitWeb3()
 
             op_time = time.time()
             txpool.append_current_txp()
@@ -132,6 +137,7 @@ def master_control(args):
             txpool.prune(alltx.process_block)
             console.info("*** Pruning dataframes/mysql from getting too large [" + str(time.time() - op_time) + "] s")
 
+            #minute
             if not pMysqlSave.is_alive():
                 outputMng.handleGacefullHalt()
                 pMysqlSave = multiprocessing.Process(target = mysqlSave)

@@ -3,9 +3,13 @@ import os
 import sys
 
 from web3 import Web3, HTTPProvider, WebsocketProvider, IPCProvider
+from .output import Output, OutputException
+
+console = Output()
 
 parser_instance = None
 settings_loaded = False
+hostname = None
 
 def settings_file_loaded():
     global settings_loaded
@@ -70,19 +74,31 @@ def get_settings_filepath():
             return candidate_location
     raise FileNotFoundError("Cannot find EthGasStation settings file.")
 
-def get_web3_provider(protocol=None, hostname=None, port=None, timeout=None):
+def get_web3_provider():
     """Get Web3 instance. Supports websocket, http, ipc."""
-    if protocol is None:
-        protocol = get_setting('rpc', 'protocol')
+    global hostname
+
+    protocol = get_setting('rpc', 'protocol')
+
     if hostname is None:
         hostname = get_setting('rpc', 'hostname')
-    if port is None:
-        port = get_setting('rpc', 'port')
-    if timeout is None:
-        try:
-            timeout = int(get_setting('rpc', 'timeout'))
-        except KeyError:
-            timeout = 15 # default timeout is 15 seconds
+
+    port = get_setting('rpc', 'port')
+
+    if hostname.find(".r1.") != -1:
+        hostname = hostname.replace(".r1.", ".r2.")
+    elif hostname.find(".r2.") != -1:
+        hostname = hostname.replace(".r2.", ".r1.")
+
+    console.info("get_web3_provider, RPC hostname => " + hostname)
+    
+    timeout = 30
+    
+    #if timeout is None:
+    #    try:
+    #        timeout = int(get_setting('rpc', 'timeout'))
+    #    except KeyError:
+    #        timeout = 15 # default timeout is 15 seconds
 
     if protocol == 'ws' or protocol == 'wss':
         provider = WebsocketProvider(

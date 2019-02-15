@@ -345,11 +345,26 @@ class AllTxContainer():
         except Exception as e:
             console.warn(e)
 
+    def reInitWeb3(self):
+        error_retry_count = 0
+        while True:
+            try:
+                self.web3 = egs.settings.get_web3_provider()
+                time.sleep(2)
+                self.pending_filter = self.web3.eth.filter('pending')
+                time.sleep(2)
+                blockNumber = self.web3.eth.blockNumber
+                console.info("Reinitialized geth at block " + str(blockNumber))
+                return blockNumber
+            except Exception as e:
+                error_retry_count += 1
+                time.sleep(3)
+                console.info("Failed web3/GETH connection reinitialization (" + str(error_retry_count) + ")...")
+                console.info(str(e))
+
     def listen(self):
         #Set number of transactions to sample to keep from falling behind; can be adjusted
-        web3 = egs.settings.get_web3_provider()
-        self.pending_filter = web3.eth.filter('pending')
-        current_block = web3.eth.blockNumber
+        current_block = web3.eth.blockNumber #self.reInitWeb3()
         self.process_block = current_block
         console.info ("listening for new pending transactions at block "+ str(current_block)+" and adding them to the alltx dataframe...." )
         self.new_tx_list = []
@@ -366,15 +381,19 @@ class AllTxContainer():
                     if error_retry_count != 0 and error_retry_count % 10 == 0:
                         console.info("Pending transaction filter missing, re-establishing filter (" + str(error_retry_count) + "), processing block: (" + str(self.process_block) + ")...")
                         time.sleep(5)
+                    if len(self.new_tx_list_tmp) > 25000:
+                        break
                     try:
                         #self.new_tx_list_tmp = self.pending_filter.get_all_entries() 
                         self.new_tx_list_tmp.extend(self.pending_filter.get_new_entries())
                         break
                     except:
                         error_retry_count += 1
-                        web3 = egs.settings.get_web3_provider()
-                        self.pending_filter = web3.eth.filter('pending')
-                        time.sleep(1)
+                        self.reInitWeb3()
+                        if error_retry_count > 100:
+                            console.info("Pending filter, 100 retries, terminating...")
+                            self.new_tx_list = set(self.new_tx_list_tmp)
+                            return
 
                 current_block = web3.eth.blockNumber
 
