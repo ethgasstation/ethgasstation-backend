@@ -26,10 +26,10 @@ import os.path
 import egs.settings
 from .settings import settings_file_loaded, get_setting, get_web3_provider
 
+web3 = egs.settings.get_web3_provider()
 egs.settings.load_settings()
 connstr = egs.settings.get_mysql_connstr()
 exporter = JSONExporter()
-web3 = egs.settings.get_web3_provider()
 console = Output()
 engine = create_engine(connstr, echo=False, pool_recycle=3600)
 conn = engine.connect()
@@ -248,7 +248,6 @@ class BlockDataContainer():
             except Exception as e:
                 console.warn(e)
 
-
     def process_block_data (self, block_transactions_df, block_obj):
         """gets block-level summary data and append to block dataframe"""
         console.debug("Processing block data...")
@@ -325,7 +324,6 @@ class AllTxContainer():
         self.df = pd.DataFrame()
         self.minedblock_tx_df = pd.DataFrame()
         self.block_obj = None
-        self.forced_skips = 0
         self.pending_filter = web3.eth.filter('pending')
         self.load_txdata()
         self.process_block = web3.eth.blockNumber
@@ -348,57 +346,44 @@ class AllTxContainer():
             console.warn(e)
 
     def listen(self):
-        global web3
         #Set number of transactions to sample to keep from falling behind; can be adjusted
+        web3 = egs.settings.get_web3_provider()
+        self.pending_filter = web3.eth.filter('pending')
         current_block = web3.eth.blockNumber
+        self.process_block = current_block
         console.info ("listening for new pending transactions at block "+ str(current_block)+" and adding them to the alltx dataframe...." )
         self.new_tx_list = []
         self.new_tx_list_tmp = []
         self.txlenCount = len(self.new_tx_list)
         try:
             while True:
-                if self.process_block < (current_block - 5):
-                    console.warn("blocks jumped, skipping ahead")
-                    self.process_block = current_block
-                    self.forced_skips = self.forced_skips + 1
+                #if self.process_block < (current_block - 5):
+                #    console.warn("blocks jumped, skipping ahead...")
+                #    self.process_block = current_block
 
-                self.pending_entries = []
-
+                error_retry_count = 0
                 while True:
+                    if error_retry_count != 0 and error_retry_count % 10 == 0:
+                        console.info("Pending transaction filter missing, re-establishing filter (" + str(error_retry_count) + "), processing block: (" + str(self.process_block) + ")...")
+                        time.sleep(5)
                     try:
-                        self.pending_entries = self.pending_filter.get_new_entries() 
+                        #self.new_tx_list_tmp = self.pending_filter.get_all_entries() 
+                        self.new_tx_list_tmp.extend(self.pending_filter.get_new_entries())
                         break
                     except:
-                        console.info("Pending transaction filter missing, re-establishing filter...")
-                        try:
-                            web3 = egs.settings.get_web3_provider()
-                            self.pending_filter = web3.eth.filter('pending')
-                            self.pending_entries = self.pending_filter.get_new_entries()
-                            break
-                        except:
-                            console.info("Pending transaction filter failed, retry within 5s...")
-                            time.sleep(5)
+                        error_retry_count += 1
+                        web3 = egs.settings.get_web3_provider()
+                        self.pending_filter = web3.eth.filter('pending')
+                        time.sleep(1)
 
                 current_block = web3.eth.blockNumber
 
-                if (self.pending_entries is not None) and len(self.pending_entries) > 0:
-                    console.info("Found " + str(len(self.pending_entries)) + " new pending entries at block " + str(current_block))
-                    self.new_tx_list_tmp.extend(self.pending_entries)
-
-                #try:
-                #    # console.debug("Getting filter changes...")
-                #    self.new_tx_list.extend(self.pending_filter.get_new_entries())
-                #except:
-                #    # filters suck. The node can kill them whenever it wants.
-                #    console.warn("Pending transaction filter missing, re-establishing filter")
-                #    self.pending_filter = web3.eth.filter('pending')
-                #    self.new_tx_list.extend(self.pending_filter.get_new_entries())
-    
                 if self.process_block < current_block:
                     self.new_tx_list = set(self.new_tx_list_tmp)
                     console.info("Got " + str(len(self.new_tx_list) - self.txlenCount)  + " new peding tx'es, now processing block " + str(self.process_block))
                     return
                 else:
+                    self.process_block = current_block
                     time.sleep(0.5)
         except Exception as e:
             console.warn(e)
@@ -411,6 +396,8 @@ class AllTxContainer():
         def getbatch(tx_hashes):
             """get tx objects and account nonces"""
             submitted_block = pd.DataFrame()
+            #reestablish web3 provider
+            
             txs = TxBatch(web3)
             try: 
                 results = txs.batchRequest('eth_getTransactionByHash', tx_hashes)
@@ -480,6 +467,7 @@ class AllTxContainer():
                 block_df.loc[txhash, 'gasused'] = txobject.gasUsed
         except Exception as e:
             print (e)
+
         #add mined data to dataframe
         mined_blockdf_seen = block_df[block_df.index.isin(self.df.index)]
         console.info('num mined in ' + str(mined_block_num)+ ' = ' + str(len(block_df)))

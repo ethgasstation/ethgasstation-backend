@@ -66,6 +66,8 @@ class Chaintip(object):
         else:
             # just get this from our geth/parity
             try:
+                #reinitialize provider
+                self.web3 = get_web3_provider()
                 return self.web3.eth.blockNumber
             except:
                 return -1

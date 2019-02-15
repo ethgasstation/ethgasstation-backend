@@ -14,6 +14,8 @@ set -e
 echo "####################################"
 echo "# ETH GAS STARTION BACKEND UPGRADE #"
 echo "####################################"
+echo "Replica PUBLIC IP Address:"
+dig +short myip.opendns.com @resolver1.opendns.com
 
 rm -v /usr/local/SettleFinance/ethgasstation-backend/settings.classic.conf || echo "Config file was probably already removed.";
 
@@ -28,9 +30,6 @@ systemctl start apache2
 
 echo "Checking Disk Space"
 df
-
-#echo "Last GETH Startus: "
-#journalctl --unit=geth -n 3 --no-pager
 
 echo "Last Backend Startus: "
 journalctl --unit=ethgassbackend -n 25 --no-pager
