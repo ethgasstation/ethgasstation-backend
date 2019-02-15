@@ -358,7 +358,7 @@ class AllTxContainer():
                 return blockNumber
             except Exception as e:
                 error_retry_count += 1
-                time.sleep(1)
+                time.sleep(3)
                 console.info("Failed web3/GETH connection reinitialization (" + str(error_retry_count) + ")...")
                 console.info(str(e))
 
@@ -381,6 +381,8 @@ class AllTxContainer():
                     if error_retry_count != 0 and error_retry_count % 10 == 0:
                         console.info("Pending transaction filter missing, re-establishing filter (" + str(error_retry_count) + "), processing block: (" + str(self.process_block) + ")...")
                         time.sleep(5)
+                    if len(self.new_tx_list_tmp) > 25000:
+                        break
                     try:
                         #self.new_tx_list_tmp = self.pending_filter.get_all_entries() 
                         self.new_tx_list_tmp.extend(self.pending_filter.get_new_entries())
