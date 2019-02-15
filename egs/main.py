@@ -7,7 +7,7 @@ import traceback
 import logging
 from .egs_ref import *
 from .output import Output, OutputException
-import datetime
+from datetime import datetime
 import time
 import multiprocessing
 
@@ -137,11 +137,14 @@ def master_control(args):
             txpool.prune(alltx.process_block)
             console.info("*** Pruning dataframes/mysql from getting too large [" + str(time.time() - op_time) + "] s")
 
-            #minute
+            currentMinute = datetime.now().minute
             if not pMysqlSave.is_alive():
                 outputMng.handleGacefullHalt()
-                pMysqlSave = multiprocessing.Process(target = mysqlSave)
-                pMysqlSave.start()
+                if currentMinute < 14 or (currentMinute > 16 and currentMinute < 44) or currentMinute > 46:
+                    pMysqlSave = multiprocessing.Process(target = mysqlSave)
+                    pMysqlSave.start()
+                else:
+                    console.info("State will not be saved, replica reboot might be in progress...")
 
             #update counter
             alltx.process_block += 1
