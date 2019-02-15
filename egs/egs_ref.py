@@ -346,16 +346,15 @@ class AllTxContainer():
             console.warn(e)
 
     def reInitWeb3(self):
-        global web3
         error_retry_count = 0
         while True:
             try:
-                web3 = egs.settings.get_web3_provider()
+                self.web3 = egs.settings.get_web3_provider()
                 time.sleep(2)
-                self.pending_filter = web3.eth.filter('pending')
+                self.pending_filter = self.web3.eth.filter('pending')
                 time.sleep(2)
-                blockNumber = web3.eth.blockNumber
-                console.linfo("Reinitialized geth at block " + str(blockNumber))
+                blockNumber = self.web3.eth.blockNumber
+                console.info("Reinitialized geth at block " + str(blockNumber))
                 return blockNumber
             except Exception as e:
                 error_retry_count += 1
@@ -364,7 +363,6 @@ class AllTxContainer():
                 console.info(str(e))
 
     def listen(self):
-        global web3
         #Set number of transactions to sample to keep from falling behind; can be adjusted
         current_block = self.reInitWeb3()
         self.process_block = current_block
