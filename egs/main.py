@@ -33,10 +33,13 @@ def master_control(args):
     end_time = 0
 
     def mysqlSave():
-        console.info("Saving 'alltx' sate to MySQL...")
-        alltx.write_to_sql(txpool)
-        console.info("Saving 'blockdata' sate to MySQL...")
-        blockdata.write_to_sql()
+        try:
+            console.info("Saving 'alltx' sate to MySQL...")
+            alltx.write_to_sql(txpool)
+            console.info("Saving 'blockdata' sate to MySQL...")
+            blockdata.write_to_sql()
+        except:
+            console.info("FAILED Saving data to MySQL...")
 
     pMysqlSave = multiprocessing.Process(target = mysqlSave)
 
