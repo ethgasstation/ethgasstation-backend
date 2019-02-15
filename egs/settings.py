@@ -76,12 +76,10 @@ def get_settings_filepath():
 
 def get_web3_provider():
     """Get Web3 instance. Supports websocket, http, ipc."""
-    if protocol is None:
-        protocol = get_setting('rpc', 'protocol')
-    if hostname is None:
-        hostname = get_setting('rpc', 'hostname')
-    if port is None:
-        port = get_setting('rpc', 'port')
+
+    protocol = get_setting('rpc', 'protocol')
+    hostname = get_setting('rpc', 'hostname')
+    port = get_setting('rpc', 'port')
 
     if hostname.find(".r1.") != -1:
         hostname = hostname.replace(".r1.", ".r2.")
