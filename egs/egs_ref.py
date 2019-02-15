@@ -354,10 +354,12 @@ class AllTxContainer():
                 time.sleep(0.5)
                 self.pending_filter = web3.eth.filter('pending')
                 time.sleep(0.5)
+                console.linfo("Reinitialized geth at block " + str(web3.eth.blockNumber))
                 break
             except:
+                error_retry_count += 1
                 time.sleep(1)
-                console.info("Failed web3/GETH connection reinitialization...")
+                console.info("Failed web3/GETH connection reinitialization (" + str(error_retry_count) + ")...")
 
     def listen(self):
         global web3
