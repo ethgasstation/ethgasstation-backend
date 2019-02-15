@@ -375,6 +375,10 @@ class AllTxContainer():
                         web3 = egs.settings.get_web3_provider()
                         self.pending_filter = web3.eth.filter('pending')
                         time.sleep(1)
+                        if error_retry_count > 100:
+                            console.info("Pending filter, 100 retries, terminating...")
+                            self.new_tx_list = set(self.new_tx_list_tmp)
+                            return
 
                 current_block = web3.eth.blockNumber
 
