@@ -71,7 +71,6 @@ infrastructure.
 
 Ensure latest urllib3 is installed
 
-
 pip install git+https://github.com/shazow/urllib3
 
 
@@ -80,7 +79,7 @@ or if that doesn't help upgrade requirements.txt, then
 cd /usr/local/SettleFinance/ethgasstation-backend
 pip install -r requirements.txt
 
-
+pip install --upgrade urllib3
 
 
 
