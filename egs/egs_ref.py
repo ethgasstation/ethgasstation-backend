@@ -351,21 +351,22 @@ class AllTxContainer():
         while True:
             try:
                 web3 = egs.settings.get_web3_provider()
-                time.sleep(0.5)
+                time.sleep(2)
                 self.pending_filter = web3.eth.filter('pending')
-                time.sleep(0.5)
-                console.linfo("Reinitialized geth at block " + str(web3.eth.blockNumber))
-                break
-            except:
+                time.sleep(2)
+                blockNumber = web3.eth.blockNumber
+                console.linfo("Reinitialized geth at block " + str(blockNumber))
+                return blockNumber
+            except Exception as e:
                 error_retry_count += 1
                 time.sleep(1)
                 console.info("Failed web3/GETH connection reinitialization (" + str(error_retry_count) + ")...")
+                console.info(str(e))
 
     def listen(self):
         global web3
-        self.reInitWeb3()
         #Set number of transactions to sample to keep from falling behind; can be adjusted
-        current_block = web3.eth.blockNumber
+        current_block = self.reInitWeb3()
         self.process_block = current_block
         console.info ("listening for new pending transactions at block "+ str(current_block)+" and adding them to the alltx dataframe...." )
         self.new_tx_list = []
