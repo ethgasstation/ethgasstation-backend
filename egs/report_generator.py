@@ -160,6 +160,7 @@ class SummaryReport():
             '0x06012c8cf97bead5deae237070f9587f8e7a266d': 'Cryptokitties',
             '0xb1690c08e213a35ed9bab7b318de14420fb57d8c': 'Cryptokitties Auction',
             '0x2a0c0dbecc7e4d658f48e01e3fa353f44050c208': 'IDEX',
+            '0x0000000000085d4780B73119b644AE5ecd22b376': 'TrueUSD',
             '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2': 'WrappedEther',
             '0xaB5C66752a9e8167967685F1450532fB96d5d24f': 'Huobi 1',
             '0x6748F50f686bfbcA6Fe8ad62b22228b87F31ff2b': 'Huobi 2',
