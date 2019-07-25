@@ -267,7 +267,7 @@ class BlockDataContainer():
     def analyze_last200blocks(self, block):
         """analyzes % of last 200 blocks by min mined gas price, summary stats """
         blockdata = self.blockdata_df
-        recent_blocks = blockdata.loc[blockdata['block_number'] > (block - 200), ['mingasprice', 'block_number', 'gaslimit', 'time_mined', 'speed']]
+        recent_blocks = blockdata.loc[blockdata['block_number'] > (block - 500), ['mingasprice', 'block_number', 'gaslimit', 'time_mined', 'speed']]
         gaslimit = recent_blocks['gaslimit'].mean()
         last10 = recent_blocks.sort_values('block_number', ascending=False).head(n=10)
         speed = last10['speed'].mean()
@@ -748,15 +748,17 @@ class GasPriceReport():
         speed = self.blockdata.speed
         block = self.block
 
-        if self.submitted_remote.safe:
-            safelow = self.submitted_remote.safe
-        else:
-            safelow = self.blockdata.safe       
+        # if self.submitted_remote.safe:
+        #     safelow = self.submitted_remote.safe
+        # else:
+        #     safelow = self.blockdata.safe
+        safelow = self.blockdata.safe
             
-        if self.submitted_recent.safe:
-            average = self.submitted_recent.safe
-        else:
-            average = self.blockdata.avg
+        # if self.submitted_recent.safe:
+        #     average = self.submitted_recent.safe
+        # else:
+        #     average = self.blockdata.avg
+        average = self.blockdata.avg
 
         console.info('safelow: ' + str(safelow))
         console.info('avg: ' +str(average))
@@ -768,8 +770,8 @@ class GasPriceReport():
         gprecs['average'] = average
         
         
-        if (gprecs['fast'] < gprecs['average']):
-            gprecs['fast'] = gprecs['average']
+        # if (gprecs['fast'] < gprecs['average']):
+        #     gprecs['fast'] = gprecs['average']
 
         gprecs['block_time'] = block_time
         gprecs['blockNum'] = block
@@ -784,20 +786,20 @@ class GasPriceReport():
         avg_predict = prediction_table.loc[prediction_table['expectedTime'] < 4].index.min()
         console.info('avg predict: ' + str(avg_predict))
 
-        if self.gprecs['safeLow'] < safelow_predict:
-            self.gprecs['safeLow'] = safelow_predict
-        
-        if self.gprecs['average'] < avg_predict:
-            self.gprecs['average'] = avg_predict
-        
-        if self.gprecs['safeLow'] > self.gprecs['average']:
-            self.gprecs['safeLow'] = self.gprecs['average']
+        # if self.gprecs['safeLow'] < safelow_predict:
+        #     self.gprecs['safeLow'] = safelow_predict
+        #
+        # if self.gprecs['average'] < avg_predict:
+        #     self.gprecs['average'] = avg_predict
+        #
+        # if self.gprecs['safeLow'] > self.gprecs['average']:
+        #     self.gprecs['safeLow'] = self.gprecs['average']
         
         self.array30m.append(self.gprecs['safeLow'])
         self.array5m.append(self.gprecs['average'])
 
-        self.gprecs['safeLow'] = np.percentile(self.array30m, 50)
-        self.gprecs['average'] = np.percentile(self.array5m, 50)
+        # self.gprecs['safeLow'] = np.percentile(self.array30m, 50)
+        # self.gprecs['average'] = np.percentile(self.array5m, 50)
         
         if len(self.array5m) > 10:
             self.array5m.pop(0)
@@ -832,6 +834,8 @@ class GasPriceReport():
             self.gprecs['average'] /= 10 
             self.gprecs['fast'] /= 10
             self.gprecs['fastest'] /=10
+            if self.gprecs['average'] >= self.gprecs['fast']:
+                self.gprecs['fast'] = self.gprecs['fastest']
             print(self.gprecs)
             exporter.write_json('ethgasAPI', self.gprecs)
         except Exception as e:
