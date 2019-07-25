@@ -296,6 +296,7 @@ class BlockDataContainer():
         self.block_time = avg_timemined
         self.gaslimit = gaslimit
         self.speed = speed
+        self.totalBlocks = totalblocks
         
     def write_to_sql(self):
         console.info("Writing blockdata (" + str(len(self.blockdata_df)) + ") to mysql for analysis...")
@@ -776,6 +777,7 @@ class GasPriceReport():
         gprecs['block_time'] = block_time
         gprecs['blockNum'] = block
         gprecs['speed'] = speed
+        gprecs['totalBlocks'] = self.blockdata.totalBlocks
 
         self.gprecs = gprecs
     
