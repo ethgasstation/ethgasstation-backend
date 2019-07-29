@@ -267,7 +267,7 @@ class BlockDataContainer():
     def analyze_last200blocks(self, block):
         """analyzes % of last 200 blocks by min mined gas price, summary stats """
         blockdata = self.blockdata_df
-        recent_blocks = blockdata.loc[blockdata['block_number'] > (block - 500), ['mingasprice', 'block_number', 'gaslimit', 'time_mined', 'speed']]
+        recent_blocks = blockdata.loc[blockdata['block_number'] > (block - 200), ['mingasprice', 'block_number', 'gaslimit', 'time_mined', 'speed']]
         gaslimit = recent_blocks['gaslimit'].mean()
         last10 = recent_blocks.sort_values('block_number', ascending=False).head(n=10)
         speed = last10['speed'].mean()
