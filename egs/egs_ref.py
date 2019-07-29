@@ -264,26 +264,20 @@ class BlockDataContainer():
         self.block_sumdf = clean_block
         self.blockdata_df = self.blockdata_df.append(clean_block, ignore_index = True)
 
-    def analyze_last200blocks(self, block, alltx):
+    def analyze_last200blocks(self, block):
         """analyzes % of last 200 blocks by min mined gas price, summary stats """
         blockdata = self.blockdata_df
         recent_blocks = blockdata.loc[blockdata['block_number'] > (block - 500), ['mingasprice', 'block_number', 'gaslimit', 'time_mined', 'speed']]
-        recentTxs = alltx.loc[alltx['round_gp_10gwei'] > 0, ['round_gp_10gwei', 'gas_price']]
         gaslimit = recent_blocks['gaslimit'].mean()
         last10 = recent_blocks.sort_values('block_number', ascending=False).head(n=10)
         speed = last10['speed'].mean()
         #create hashpower accepting dataframe based on mingasprice accepted in block
         df = make_gp_index()
-        #hashpower = recent_blocks[['mingasprice', 'block_number']].groupby('mingasprice').count()
-        hashpower = recentTxs[['round_gp_10gwei', 'gas_price']].groupby('round_gp_10gwei').count()
-        #hashpower = hashpower.rename(columns={'block_number': 'count'})
-        hashpower = hashpower.rename(columns={'gas_price': 'count'})
-        #hashpower['cum_blocks'] = hashpower['count'].cumsum()
-        hashpower['cum_txs'] = hashpower['count'].cumsum()
-        #totalblocks = hashpower['count'].sum()
-        totalTxs = hashpower['count'].sum()
-        #hashpower['hashp_pct'] = hashpower['cum_blocks']/totalblocks*100
-        hashpower['hashp_pct'] = hashpower['cum_txs'] / totalTxs * 100
+        hashpower = recent_blocks[['mingasprice', 'block_number']].groupby('mingasprice').count()
+        hashpower = hashpower.rename(columns={'block_number': 'count'})
+        hashpower['cum_blocks'] = hashpower['count'].cumsum()
+        totalblocks = hashpower['count'].sum()
+        hashpower['hashp_pct'] = hashpower['cum_blocks'] / totalblocks * 100
         #get avg blockinterval time
         blockinterval = recent_blocks.sort_values('block_number').diff()
         blockinterval.loc[blockinterval['block_number'] > 1, 'time_mined'] = np.nan
@@ -296,13 +290,13 @@ class BlockDataContainer():
         df = df.fillna(0)
         self.safe = df.loc[df['hashp_pct']>=30].index.min()
         self.avg = df.loc[df['hashp_pct']>=50].index.min()
-        self.fast = df.loc[df['hashp_pct']>=80].index.min()
+        self.fast = df.loc[df['hashp_pct']>=90].index.min()
         self.fastest = df.loc[df['hashp_pct']>=99].index.min()
         self.hashpower = df
         self.block_time = avg_timemined
         self.gaslimit = gaslimit
         self.speed = speed
-        self.totalTxs = totalTxs
+        self.totalBlocks = totalblocks
         
     def write_to_sql(self):
         console.info("Writing blockdata (" + str(len(self.blockdata_df)) + ") to mysql for analysis...")
@@ -783,7 +777,7 @@ class GasPriceReport():
         gprecs['block_time'] = block_time
         gprecs['blockNum'] = block
         gprecs['speed'] = speed
-        gprecs['totalTxs'] = self.blockdata.totalTxs
+        gprecs['totalBlocks'] = self.blockdata.totalBlocks
 
         self.gprecs = gprecs
     
