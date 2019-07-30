@@ -288,8 +288,8 @@ class BlockDataContainer():
         df = df.join(hashpower, how='left')
         df = df.fillna(method = 'ffill')
         df = df.fillna(0)
-        self.safe = df.loc[df['hashp_pct']>=30].index.min()
-        self.avg = df.loc[df['hashp_pct']>=50].index.min()
+        self.safe = df.loc[df['hashp_pct']>=35].index.min()
+        self.avg = df.loc[df['hashp_pct']>=55].index.min()
         self.fast = df.loc[df['hashp_pct']>=90].index.min()
         self.fastest = df.loc[df['hashp_pct']>=99].index.min()
         self.hashpower = df
@@ -777,31 +777,30 @@ class GasPriceReport():
         gprecs['block_time'] = block_time
         gprecs['blockNum'] = block
         gprecs['speed'] = speed
-        gprecs['totalBlocks'] = self.blockdata.totalBlocks
 
         self.gprecs = gprecs
     
     
     def get_wait(self, prediction_table):
-        safelow_predict = prediction_table.loc[prediction_table['expectedTime'] < 25].index.min()
+        safelow_predict = prediction_table.loc[prediction_table['expectedTime'] <= 30].index.min()
         console.info('safeLow predict: ' + str(safelow_predict))
-        avg_predict = prediction_table.loc[prediction_table['expectedTime'] < 4].index.min()
+        avg_predict = prediction_table.loc[prediction_table['expectedTime'] <= 5].index.min()
         console.info('avg predict: ' + str(avg_predict))
 
-        # if self.gprecs['safeLow'] < safelow_predict:
-        #     self.gprecs['safeLow'] = safelow_predict
-        #
-        # if self.gprecs['average'] < avg_predict:
-        #     self.gprecs['average'] = avg_predict
-        #
-        # if self.gprecs['safeLow'] > self.gprecs['average']:
-        #     self.gprecs['safeLow'] = self.gprecs['average']
+        if self.gprecs['safeLow'] < safelow_predict:
+            self.gprecs['safeLow'] = safelow_predict
+
+        if self.gprecs['average'] < avg_predict:
+            self.gprecs['average'] = avg_predict
+
+        if self.gprecs['safeLow'] > self.gprecs['average']:
+            self.gprecs['safeLow'] = self.gprecs['average']
         
         self.array30m.append(self.gprecs['safeLow'])
         self.array5m.append(self.gprecs['average'])
 
-        # self.gprecs['safeLow'] = np.percentile(self.array30m, 50)
-        # self.gprecs['average'] = np.percentile(self.array5m, 50)
+        self.gprecs['safeLow'] = np.percentile(self.array30m, 50)
+        self.gprecs['average'] = np.percentile(self.array5m, 50)
         
         if len(self.array5m) > 10:
             self.array5m.pop(0)
@@ -836,6 +835,8 @@ class GasPriceReport():
             self.gprecs['average'] /= 10 
             self.gprecs['fast'] /= 10
             self.gprecs['fastest'] /=10
+            if self.gprecs['average'] > self.gprecs['fastest']:
+                self.gprecs['fastest'] = self.gprecs['average']
             if self.gprecs['average'] >= self.gprecs['fast']:
                 self.gprecs['fast'] = self.gprecs['fastest']
             print(self.gprecs)
