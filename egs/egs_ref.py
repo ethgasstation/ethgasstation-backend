@@ -7,6 +7,7 @@ for the EthGasStation adaptive oracle.
 
 import pandas as pd
 import numpy as np
+import math
 import json
 import urllib
 import time
@@ -780,7 +781,7 @@ class GasPriceReport():
 
         self.gprecs = gprecs
     
-    
+
     def get_wait(self, prediction_table):
         safelow_predict = prediction_table.loc[prediction_table['expectedTime'] <= 30].index.min()
         console.info('safeLow predict: ' + str(safelow_predict))
@@ -833,20 +834,59 @@ class GasPriceReport():
         self.gprecs['fastestWait'] = lookup(self.gprecs['fastest'])
 
         gasPrice = int(self.gprecs['fastest'])
-        skip = 5
+        skip = 50
         gasPriceRange = {}
-        while gasPrice >= 10:
-            wait = prediction_table.at[gasPrice, 'expectedTime']
+        while gasPrice >= 100:                      # loop upto 1 Gwei
+            wait = lookup(gasPrice)
             if wait:
                 wait = round(wait, 1)
-            gasPriceRange[gasPrice] = wait
-            if gasPrice >= 200:
-                skip = 20
-            elif gasPrice >= 150:
-                skip = 10
+            gasPriceRange[int(gasPrice / 10)] = wait
+            if gasPrice > 2000:
+                skip = 200
+            elif gasPrice > 1500:
+                skip = 100
             gasPrice -= skip
 
         self.gprecs['gasPriceRange'] = gasPriceRange
+        prices = [k  for  k in  gasPriceRange]
+        prices.reverse()
+        if self.gprecs['average'] >= 1000:
+            average = self.find_closest(prices, 0, self.gprecs['fast'] / (2 * 10)) * 10
+            if average < self.gprecs['average']:
+                self.gprecs['average'] = average
+                self.gprecs['avgWait'] = lookup(average)
+            low = self.find_closest(prices, 0, self.gprecs['average'] / (2 * 10)) * 10
+            if low < self.gprecs['safeLow']:
+                self.gprecs['safeLow'] = low
+                self.gprecs['safeLowWait'] = lookup(low)
+
+
+    def find_closest(self, list, mid, target):
+        n = len(list)
+        left = 0
+        right = n - 1
+
+        # edge case - last or above all
+        if target >= list[n - 1]:
+            return list[n - 1]
+        # edge case - first or below all
+        if target <= list[0]:
+            return list[0]
+        # BSearch solution: Time & Space: Log(N)
+
+        while left < right:
+            mid = (left + right) // 2  # find the mid
+            if target < list[mid]:
+                right = mid
+            elif target > list[mid]:
+                left = mid + 1
+            else:
+                return list[mid]
+
+        if target < list[mid]:
+            return self.find_closest(list[mid - 1], list[mid], target)
+        else:
+            return self.find_closest(list[mid], list[mid + 1], target)
 
     def write_to_json(self):
         """write json data"""
@@ -855,7 +895,7 @@ class GasPriceReport():
             self.gprecs['safeLow'] /= 10
             self.gprecs['average'] /= 10 
             self.gprecs['fast'] /= 10
-            self.gprecs['fastest'] /=10
+            self.gprecs['fastest'] /= 10
             if self.gprecs['average'] > self.gprecs['fastest']:
                 self.gprecs['fastest'] = self.gprecs['average']
             if self.gprecs['average'] >= self.gprecs['fast']:
