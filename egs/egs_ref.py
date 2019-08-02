@@ -832,6 +832,17 @@ class GasPriceReport():
         self.gprecs['fastWait'] = lookup(self.gprecs['fast'])
         self.gprecs['fastestWait'] = lookup(self.gprecs['fastest'])
 
+        gasPrice = self.gprecs['fastest']
+        gasPriceRange = {}
+        while gasPrice >= 10:
+            wait = prediction_table.at[gasPrice, 'expectedTime']
+            if wait:
+                wait = round(wait, 1)
+            gasPriceRange[gasPrice] = wait
+            gasPrice -= 10
+
+        self.gprecs['gasPriceRange'] = gasPriceRange
+
     def write_to_json(self):
         """write json data"""
         global exporter
