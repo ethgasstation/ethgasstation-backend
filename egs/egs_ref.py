@@ -832,14 +832,19 @@ class GasPriceReport():
         self.gprecs['fastWait'] = lookup(self.gprecs['fast'])
         self.gprecs['fastestWait'] = lookup(self.gprecs['fastest'])
 
-        gasPrice = self.gprecs['fastest']
+        gasPrice = int(self.gprecs['fastest'])
+        skip = 5
         gasPriceRange = {}
         while gasPrice >= 10:
             wait = prediction_table.at[gasPrice, 'expectedTime']
             if wait:
                 wait = round(wait, 1)
             gasPriceRange[gasPrice] = wait
-            gasPrice -= 10
+            if gasPrice >= 200:
+                skip = 20
+            elif gasPrice >= 150:
+                skip = 10
+            gasPrice -= skip
 
         self.gprecs['gasPriceRange'] = gasPriceRange
 
