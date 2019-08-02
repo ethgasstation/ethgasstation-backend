@@ -786,6 +786,11 @@ class GasPriceReport():
         console.info('safeLow predict: ' + str(safelow_predict))
         avg_predict = prediction_table.loc[prediction_table['expectedTime'] <= 5].index.min()
         console.info('avg predict: ' + str(avg_predict))
+        fast_predict = prediction_table.loc[prediction_table['expectedTime'] <= 2].index.min()
+        console.info('fast predict: ' + str(fast_predict))
+
+        if self.gprecs['fast'] > fast_predict:
+            self.gprecs['fast'] = fast_predict
 
         if self.gprecs['safeLow'] < safelow_predict:
             self.gprecs['safeLow'] = safelow_predict
