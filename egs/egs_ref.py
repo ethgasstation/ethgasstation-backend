@@ -288,8 +288,8 @@ class BlockDataContainer():
         df = df.join(hashpower, how='left')
         df = df.fillna(method = 'ffill')
         df = df.fillna(0)
-        self.safe = df.loc[df['hashp_pct']>=35].index.min()
-        self.avg = df.loc[df['hashp_pct']>=55].index.min()
+        self.safe = df.loc[df['hashp_pct']>=30].index.min()
+        self.avg = df.loc[df['hashp_pct']>=50].index.min()
         self.fast = df.loc[df['hashp_pct']>=90].index.min()
         self.fastest = df.loc[df['hashp_pct']>=99].index.min()
         self.hashpower = df
