@@ -898,7 +898,7 @@ class GasPriceReport():
             self.gprecs['fastest'] /= 10
             if self.gprecs['average'] > self.gprecs['fastest']:
                 self.gprecs['fastest'] = self.gprecs['average']
-            if self.gprecs['average'] >= self.gprecs['fast']:
+            if self.gprecs['average'] > self.gprecs['fast']:
                 self.gprecs['fast'] = self.gprecs['fastest']
             print(self.gprecs)
             exporter.write_json('ethgasAPI', self.gprecs)
