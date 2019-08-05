@@ -836,7 +836,7 @@ class GasPriceReport():
         gasPrice = int(self.gprecs['fastest'])
         skip = 50
         gasPriceRange = {}
-        while gasPrice >= 100:                      # loop upto 1 Gwei
+        while gasPrice >= 40:                      # loop upto 0.4 Gwei
             wait = lookup(gasPrice)
             if wait:
                 wait = round(wait, 1)
@@ -845,23 +845,56 @@ class GasPriceReport():
                 skip = 200
             elif gasPrice > 1500:
                 skip = 100
+            elif gasPrice <= 100:
+                skip = 20
             gasPrice -= skip
 
-        self.gprecs['gasPriceRange'] = gasPriceRange
-        prices = [k  for  k in  gasPriceRange]
+        prices = [k for k in  gasPriceRange]
+        waitingTimes = list(gasPriceRange.values())
         prices.reverse()
         if self.gprecs['average'] >= 1000:
-            average = self.find_closest(prices, 0, self.gprecs['fast'] / (2 * 10)) * 10
+            average = self.find_closest_gas(prices, 0, self.gprecs['fast'] / (2 * 10)) * 10
             if average < self.gprecs['average']:
                 self.gprecs['average'] = average
                 self.gprecs['avgWait'] = lookup(average)
-            low = self.find_closest(prices, 0, self.gprecs['average'] / (2 * 10)) * 10
+            low = self.find_closest_gas(prices, 0, self.gprecs['average'] / (2 * 10)) * 10
             if low < self.gprecs['safeLow']:
                 self.gprecs['safeLow'] = low
                 self.gprecs['safeLowWait'] = lookup(low)
 
+        if self.gprecs['avgWait'] < 5:
+            avgWait = self.find_nearest_time(waitingTimes, 5)
+            average = self.gprecs['average']
+            for gas, time in gasPriceRange.items():
+                if avgWait == time:
+                    average = gas
+                    break
+            if self.gprecs['avgWait'] < avgWait:
+                self.gprecs['average'] = average
+                self.gprecs['avgWait'] = avgWait
 
-    def find_closest(self, list, mid, target):
+        if self.gprecs['safeLowWait'] < 30:
+            safeLowWait = self.find_nearest_time(waitingTimes, 30)
+            safeLow = self.gprecs['safeLow']
+            for gas, time in gasPriceRange.items():
+                if safeLowWait == time:
+                    safeLow = gas
+                    break
+            if self.gprecs['safeLowWait'] < safeLowWait:
+                self.gprecs['safeLow'] = safeLow
+                self.gprecs['safeLowWait'] = safeLowWait
+
+        gasPriceRange[self.gprecs['fast']] = self.gprecs['fastWait']
+        gasPriceRange[self.gprecs['average']] = self.gprecs['avgWait']
+        gasPriceRange[self.gprecs['safeLow']] = self.gprecs['safeLowWait']
+        self.gprecs['gasPriceRange'] = gasPriceRange
+
+    def find_nearest_time(self, array, value):
+        array = np.asarray(array)
+        idx = (np.abs(array - value)).argmin()
+        return array[idx]
+
+    def find_closest_gas(self, list, mid, target):
         n = len(list)
         left = 0
         right = n - 1
@@ -884,9 +917,9 @@ class GasPriceReport():
                 return list[mid]
 
         if target < list[mid]:
-            return self.find_closest(list[mid - 1], list[mid], target)
+            return self.find_closest_gas(list[mid - 1], list[mid], target)
         else:
-            return self.find_closest(list[mid], list[mid + 1], target)
+            return self.find_closest_gas(list[mid], list[mid + 1], target)
 
     def write_to_json(self):
         """write json data"""
