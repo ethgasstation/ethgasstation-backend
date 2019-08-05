@@ -787,7 +787,12 @@ class GasPriceReport():
         console.info('safeLow predict: ' + str(safelow_predict))
         avg_predict = prediction_table.loc[prediction_table['expectedTime'] <= 5].index.min()
         console.info('avg predict: ' + str(avg_predict))
-        fast_predict = prediction_table.loc[prediction_table['expectedTime'] <= 1].index.min()
+
+        fast_predict = self.gprecs['fast']
+        if fast_predict >= 1000:
+            fast_predict = prediction_table.loc[prediction_table['expectedTime'] <= 0.5].index.min()
+            if fast_predict >= 1000:
+                fast_predict = prediction_table.loc[prediction_table['expectedTime'] <= 1].index.min()
         console.info('fast predict: ' + str(fast_predict))
 
         if self.gprecs['fast'] > fast_predict:
@@ -861,18 +866,6 @@ class GasPriceReport():
             if low < self.gprecs['safeLow']:
                 self.gprecs['safeLow'] = low
                 self.gprecs['safeLowWait'] = lookup(low)
-
-        if self.gprecs['fast'] < 500:
-            fast = self.gprecs['fast']
-            fastWait = self.find_nearest_time(waitingTimes, 0.5)
-            tuples = sorted(gasPriceRange.items(), key=lambda x: x[0])
-            for elm in tuples:
-                if fastWait == elm[1]:
-                    average = elm[0] * 10
-                    break
-            if self.gprecs['fastWait'] > fastWait:
-                self.gprecs['fast'] = fast
-                self.gprecs['fastWait'] = fastWait
 
         if self.gprecs['avgWait'] < 5:
             avgWait = self.find_nearest_time(waitingTimes, 5)
