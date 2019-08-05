@@ -865,9 +865,10 @@ class GasPriceReport():
         if self.gprecs['avgWait'] < 5:
             avgWait = self.find_nearest_time(waitingTimes, 5)
             average = self.gprecs['average']
-            for gas, time in gasPriceRange.items():
-                if avgWait == time:
-                    average = gas
+            tuples = sorted(gasPriceRange.items() ,  key=lambda x: x[0] )
+            for elm in tuples:
+                if avgWait == elm[1]:
+                    average = elm[0] * 10
                     break
             if self.gprecs['avgWait'] < avgWait:
                 self.gprecs['average'] = average
@@ -876,17 +877,18 @@ class GasPriceReport():
         if self.gprecs['safeLowWait'] < 30:
             safeLowWait = self.find_nearest_time(waitingTimes, 30)
             safeLow = self.gprecs['safeLow']
-            for gas, time in gasPriceRange.items():
-                if safeLowWait == time:
-                    safeLow = gas
+            tuples = sorted(gasPriceRange.items(), key=lambda x: x[0])
+            for elm in tuples:
+                if safeLowWait == elm[1]:
+                    safeLow = elm[0] * 10
                     break
             if self.gprecs['safeLowWait'] < safeLowWait:
                 self.gprecs['safeLow'] = safeLow
                 self.gprecs['safeLowWait'] = safeLowWait
 
-        gasPriceRange[self.gprecs['fast']] = self.gprecs['fastWait']
-        gasPriceRange[self.gprecs['average']] = self.gprecs['avgWait']
-        gasPriceRange[self.gprecs['safeLow']] = self.gprecs['safeLowWait']
+        gasPriceRange[int(self.gprecs['fast']) / 10] = self.gprecs['fastWait']
+        gasPriceRange[int(self.gprecs['average']) / 10] = self.gprecs['avgWait']
+        gasPriceRange[int(self.gprecs['safeLow']) / 10] = self.gprecs['safeLowWait']
         self.gprecs['gasPriceRange'] = gasPriceRange
 
     def find_nearest_time(self, array, value):
