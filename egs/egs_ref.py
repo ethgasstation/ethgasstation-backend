@@ -886,9 +886,9 @@ class GasPriceReport():
                 self.gprecs['safeLow'] = safeLow
                 self.gprecs['safeLowWait'] = safeLowWait
 
-        gasPriceRange[int(self.gprecs['fast']) / 10] = self.gprecs['fastWait']
-        gasPriceRange[int(self.gprecs['average']) / 10] = self.gprecs['avgWait']
-        gasPriceRange[int(self.gprecs['safeLow']) / 10] = self.gprecs['safeLowWait']
+        gasPriceRange[round(self.gprecs['fast'], 0) / 10] = self.gprecs['fastWait']
+        gasPriceRange[round(self.gprecs['average'], 0) / 10] = self.gprecs['avgWait']
+        gasPriceRange[round(self.gprecs['safeLow'], 0) / 10] = self.gprecs['safeLowWait']
         self.gprecs['gasPriceRange'] = gasPriceRange
 
     def find_nearest_time(self, array, value):
