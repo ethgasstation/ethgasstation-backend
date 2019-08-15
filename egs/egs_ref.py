@@ -725,7 +725,7 @@ class PredictionTable():
                 else:
                     self.predictiondf = self.predictiondf.loc[self.predictiondf['total_seen_5m'] > 0]
                 prediction_tableout = self.predictiondf.to_json(orient='records')
-                exporter.write_json('predictTable', prediction_tableout)
+                exporter.write_json('predictTable-new', prediction_tableout)
         except Exception as e:
             console.error("write_to_json: Exception caught: " + str(e))
 
@@ -941,7 +941,7 @@ class GasPriceReport():
             if self.gprecs['average'] > self.gprecs['fast']:
                 self.gprecs['fast'] = self.gprecs['fastest']
             print(self.gprecs)
-            exporter.write_json('ethgasAPI', self.gprecs)
+            exporter.write_json('ethgasAPI-new', self.gprecs)
         except Exception as e:
             console.error("write_to_json: Exception caught: " + str(e))
 
