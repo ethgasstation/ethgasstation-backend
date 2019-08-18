@@ -72,6 +72,7 @@ def master_control(args):
 
             op_time = time.time()
             blockdata.analyze_last200blocks(alltx.process_block)
+
             console.info("*** create summary stats for last 200 blocks [" + str(time.time() - op_time) + "] s")
 
             op_time = time.time()

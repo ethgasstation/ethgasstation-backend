@@ -177,7 +177,8 @@ class SummaryReport():
             '0x1B93129F05cc2E840135AAB154223C75097B69bf': 'Huobi 14',
             '0xEB6D43Fe241fb2320b5A3c9BE9CDfD4dd8226451': 'Huobi 15',
             '0x956e0DBEcC0e873d34a5e39B25f364b2CA036730': 'Huobi 16',
-            '0x03cb0021808442Ad5EFb61197966aef72a1deF96': 'coToken'
+            '0x03cb0021808442Ad5EFb61197966aef72a1deF96': 'coToken',
+            '0x0000000000085d4780b73119b644ae5ecd22b376': 'TrueUSD'
         }
         gasguzz = self.tx_df.groupby('to_address').sum()
         gasguzz = gasguzz.sort_values('gasused', ascending = False)

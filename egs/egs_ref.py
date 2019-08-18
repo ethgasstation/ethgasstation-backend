@@ -383,6 +383,7 @@ class AllTxContainer():
                     if error_retry_count != 0 and error_retry_count % 10 == 0:
                         console.info("Pending transaction filter missing, re-establishing filter (" + str(error_retry_count) + "), processing block: (" + str(self.process_block) + ")...")
                         time.sleep(5)
+
                     if len(self.new_tx_list_tmp) > 2500:
                         console.info("Got more then 2500 pending tx'es (" + str(len(self.new_tx_list_tmp)) + "), skipping...")
                         break
