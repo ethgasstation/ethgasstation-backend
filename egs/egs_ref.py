@@ -7,6 +7,7 @@ for the EthGasStation adaptive oracle.
 
 import pandas as pd
 import numpy as np
+import math
 import json
 import urllib
 import time
@@ -277,7 +278,7 @@ class BlockDataContainer():
         hashpower = hashpower.rename(columns={'block_number': 'count'})
         hashpower['cum_blocks'] = hashpower['count'].cumsum()
         totalblocks = hashpower['count'].sum()
-        hashpower['hashp_pct'] = hashpower['cum_blocks']/totalblocks*100
+        hashpower['hashp_pct'] = hashpower['cum_blocks'] / totalblocks * 100
         #get avg blockinterval time
         blockinterval = recent_blocks.sort_values('block_number').diff()
         blockinterval.loc[blockinterval['block_number'] > 1, 'time_mined'] = np.nan
@@ -288,14 +289,15 @@ class BlockDataContainer():
         df = df.join(hashpower, how='left')
         df = df.fillna(method = 'ffill')
         df = df.fillna(0)
-        self.safe = df.loc[df['hashp_pct']>=35].index.min()
-        self.avg = df.loc[df['hashp_pct']>=60].index.min()
+        self.safe = df.loc[df['hashp_pct']>=30].index.min()
+        self.avg = df.loc[df['hashp_pct']>=50].index.min()
         self.fast = df.loc[df['hashp_pct']>=90].index.min()
         self.fastest = df.loc[df['hashp_pct']>=99].index.min()
         self.hashpower = df
         self.block_time = avg_timemined
         self.gaslimit = gaslimit
         self.speed = speed
+        self.totalBlocks = totalblocks
         
     def write_to_sql(self):
         console.info("Writing blockdata (" + str(len(self.blockdata_df)) + ") to mysql for analysis...")
@@ -381,8 +383,9 @@ class AllTxContainer():
                     if error_retry_count != 0 and error_retry_count % 10 == 0:
                         console.info("Pending transaction filter missing, re-establishing filter (" + str(error_retry_count) + "), processing block: (" + str(self.process_block) + ")...")
                         time.sleep(5)
-                    if len(self.new_tx_list_tmp) > 1500:
-                        console.info("Got more then 1500 pending tx'es (" + str(len(self.new_tx_list_tmp)) + "), skipping...")
+
+                    if len(self.new_tx_list_tmp) > 2500:
+                        console.info("Got more then 2500 pending tx'es (" + str(len(self.new_tx_list_tmp)) + "), skipping...")
                         break
                     try:
                         #self.new_tx_list_tmp = self.pending_filter.get_all_entries() 
@@ -748,15 +751,17 @@ class GasPriceReport():
         speed = self.blockdata.speed
         block = self.block
 
-        if self.submitted_remote.safe:
-            safelow = self.submitted_remote.safe
-        else:
-            safelow = self.blockdata.safe       
+        # if self.submitted_remote.safe:
+        #     safelow = self.submitted_remote.safe
+        # else:
+        #     safelow = self.blockdata.safe
+        safelow = self.blockdata.safe
             
-        if self.submitted_recent.safe:
-            average = self.submitted_recent.safe
-        else:
-            average = self.blockdata.avg
+        # if self.submitted_recent.safe:
+        #     average = self.submitted_recent.safe
+        # else:
+        #     average = self.blockdata.avg
+        average = self.blockdata.avg
 
         console.info('safelow: ' + str(safelow))
         console.info('avg: ' +str(average))
@@ -768,8 +773,8 @@ class GasPriceReport():
         gprecs['average'] = average
         
         
-        if (gprecs['fast'] < gprecs['average']):
-            gprecs['fast'] = gprecs['average']
+        # if (gprecs['fast'] < gprecs['average']):
+        #     gprecs['fast'] = gprecs['average']
 
         gprecs['block_time'] = block_time
         gprecs['blockNum'] = block
@@ -777,19 +782,29 @@ class GasPriceReport():
 
         self.gprecs = gprecs
     
-    
+
     def get_wait(self, prediction_table):
-        safelow_predict = prediction_table.loc[prediction_table['expectedTime'] < 25].index.min()
+        safelow_predict = prediction_table.loc[prediction_table['expectedTime'] <= 30].index.min()
         console.info('safeLow predict: ' + str(safelow_predict))
-        avg_predict = prediction_table.loc[prediction_table['expectedTime'] < 4].index.min()
+        avg_predict = prediction_table.loc[prediction_table['expectedTime'] <= 5].index.min()
         console.info('avg predict: ' + str(avg_predict))
+
+        fast_predict = self.gprecs['fast']
+        if fast_predict >= 1000:
+            fast_predict = prediction_table.loc[prediction_table['expectedTime'] <= 0.5].index.min()
+            if fast_predict >= 1000:
+                fast_predict = prediction_table.loc[prediction_table['expectedTime'] <= 1].index.min()
+        console.info('fast predict: ' + str(fast_predict))
+
+        if self.gprecs['fast'] > fast_predict:
+            self.gprecs['fast'] = fast_predict
 
         if self.gprecs['safeLow'] < safelow_predict:
             self.gprecs['safeLow'] = safelow_predict
-        
+
         if self.gprecs['average'] < avg_predict:
             self.gprecs['average'] = avg_predict
-        
+
         if self.gprecs['safeLow'] > self.gprecs['average']:
             self.gprecs['safeLow'] = self.gprecs['average']
         
@@ -824,6 +839,96 @@ class GasPriceReport():
         self.gprecs['fastWait'] = lookup(self.gprecs['fast'])
         self.gprecs['fastestWait'] = lookup(self.gprecs['fastest'])
 
+        gasPrice = int(self.gprecs['fastest'])
+        skip = 50
+        gasPriceRange = {}
+        while gasPrice >= 40:                      # loop upto 0.4 Gwei
+            wait = lookup(gasPrice)
+            if wait:
+                wait = round(wait, 1)
+            gasPriceRange[int(gasPrice / 10)] = wait
+            if gasPrice > 2000:
+                skip = 200
+            elif gasPrice > 1500:
+                skip = 100
+            elif gasPrice <= 100:
+                skip = 20
+            gasPrice -= skip
+
+        prices = [k for k in  gasPriceRange]
+        waitingTimes = list(gasPriceRange.values())
+        prices.reverse()
+        if self.gprecs['average'] >= 1000:
+            average = self.find_closest_gas(prices, 0, self.gprecs['fast'] / (2 * 10)) * 10
+            if average < self.gprecs['average']:
+                self.gprecs['average'] = average
+                self.gprecs['avgWait'] = lookup(average)
+            low = self.find_closest_gas(prices, 0, self.gprecs['average'] / (2 * 10)) * 10
+            if low < self.gprecs['safeLow']:
+                self.gprecs['safeLow'] = low
+                self.gprecs['safeLowWait'] = lookup(low)
+
+        if self.gprecs['avgWait'] < 5:
+            avgWait = self.find_nearest_time(waitingTimes, 5)
+            average = self.gprecs['average']
+            tuples = sorted(gasPriceRange.items() ,  key=lambda x: x[0] )
+            for elm in tuples:
+                if avgWait == elm[1]:
+                    average = elm[0] * 10
+                    break
+            if self.gprecs['avgWait'] < avgWait:
+                self.gprecs['average'] = average
+                self.gprecs['avgWait'] = avgWait
+
+        if self.gprecs['safeLowWait'] < 30:
+            safeLowWait = self.find_nearest_time(waitingTimes, 30)
+            safeLow = self.gprecs['safeLow']
+            tuples = sorted(gasPriceRange.items(), key=lambda x: x[0])
+            for elm in tuples:
+                if safeLowWait == elm[1]:
+                    safeLow = elm[0] * 10
+                    break
+            if self.gprecs['safeLowWait'] < safeLowWait:
+                self.gprecs['safeLow'] = safeLow
+                self.gprecs['safeLowWait'] = safeLowWait
+
+        gasPriceRange[int(self.gprecs['fast'] / 10)] = self.gprecs['fastWait']
+        gasPriceRange[int(self.gprecs['average'] / 10)] = self.gprecs['avgWait']
+        gasPriceRange[int(self.gprecs['safeLow'] / 10)] = self.gprecs['safeLowWait']
+        self.gprecs['gasPriceRange'] = gasPriceRange
+
+    def find_nearest_time(self, array, value):
+        array = np.asarray(array)
+        idx = (np.abs(array - value)).argmin()
+        return array[idx]
+
+    def find_closest_gas(self, list, mid, target):
+        n = len(list)
+        left = 0
+        right = n - 1
+
+        # edge case - last or above all
+        if target >= list[n - 1]:
+            return list[n - 1]
+        # edge case - first or below all
+        if target <= list[0]:
+            return list[0]
+        # BSearch solution: Time & Space: Log(N)
+
+        while left < right:
+            mid = (left + right) // 2  # find the mid
+            if target < list[mid]:
+                right = mid
+            elif target > list[mid]:
+                left = mid + 1
+            else:
+                return list[mid]
+
+        if target < list[mid]:
+            return self.find_closest_gas(list[mid - 1], list[mid], target)
+        else:
+            return self.find_closest_gas(list[mid], list[mid + 1], target)
+
     def write_to_json(self):
         """write json data"""
         global exporter
@@ -831,7 +936,11 @@ class GasPriceReport():
             self.gprecs['safeLow'] /= 10
             self.gprecs['average'] /= 10 
             self.gprecs['fast'] /= 10
-            self.gprecs['fastest'] /=10
+            self.gprecs['fastest'] /= 10
+            if self.gprecs['average'] > self.gprecs['fastest']:
+                self.gprecs['fastest'] = self.gprecs['average']
+            if self.gprecs['average'] > self.gprecs['fast']:
+                self.gprecs['fast'] = self.gprecs['fastest']
             print(self.gprecs)
             exporter.write_json('ethgasAPI', self.gprecs)
         except Exception as e:
