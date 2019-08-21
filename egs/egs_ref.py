@@ -790,6 +790,7 @@ class GasPriceReport():
         console.info('avg predict: ' + str(avg_predict))
 
         fast_predict = self.gprecs['fast']
+        fastest_predict = self.gprecs['fastest']
         if fast_predict >= 1000:
             fast_predict = prediction_table.loc[prediction_table['expectedTime'] <= 0.5].index.min()
             if fast_predict >= 1000:
@@ -813,7 +814,10 @@ class GasPriceReport():
 
         self.gprecs['safeLow'] = np.percentile(self.array30m, 50)
         self.gprecs['average'] = np.percentile(self.array5m, 50)
-        
+
+        if fastest_predict < 800 and fast_predict < 500:
+            self.gprecs['fast'] = fastest_predict
+
         if len(self.array5m) > 10:
             self.array5m.pop(0)
         if len(self.array30m) > 10:
