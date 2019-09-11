@@ -726,7 +726,7 @@ class PredictionTable():
                 else:
                     self.predictiondf = self.predictiondf.loc[self.predictiondf['total_seen_5m'] > 0]
                 prediction_tableout = self.predictiondf.to_json(orient='records')
-                exporter.write_json('predictTable-private', prediction_tableout)
+                exporter.write_json('predictTable', prediction_tableout)
         except Exception as e:
             console.error("write_to_json: Exception caught: " + str(e))
 
@@ -806,6 +806,9 @@ class GasPriceReport():
         if self.gprecs['average'] < avg_predict:
             self.gprecs['average'] = avg_predict
 
+        if self.gprecs['average'] > self.gprecs['fast']:
+            self.gprecs['average'] = self.gprecs['fast']
+
         if self.gprecs['safeLow'] > self.gprecs['average']:
             self.gprecs['safeLow'] = self.gprecs['average']
         
@@ -859,42 +862,42 @@ class GasPriceReport():
                 skip = 20
             gasPrice -= skip
 
-        prices = [k for k in  gasPriceRange]
-        waitingTimes = list(gasPriceRange.values())
-        prices.reverse()
-        if self.gprecs['average'] >= 1000:
-            average = self.find_closest_gas(prices, 0, self.gprecs['fast'] / (2 * 10)) * 10
-            if average < self.gprecs['average']:
-                self.gprecs['average'] = average
-                self.gprecs['avgWait'] = lookup(average)
-            low = self.find_closest_gas(prices, 0, self.gprecs['average'] / (2 * 10)) * 10
-            if low < self.gprecs['safeLow']:
-                self.gprecs['safeLow'] = low
-                self.gprecs['safeLowWait'] = lookup(low)
-
-        if self.gprecs['avgWait'] < 5:
-            avgWait = self.find_nearest_time(waitingTimes, 5)
-            average = self.gprecs['average']
-            tuples = sorted(gasPriceRange.items() ,  key=lambda x: x[0] )
-            for elm in tuples:
-                if avgWait == elm[1]:
-                    average = elm[0] * 10
-                    break
-            if self.gprecs['avgWait'] < avgWait:
-                self.gprecs['average'] = average
-                self.gprecs['avgWait'] = avgWait
-
-        if self.gprecs['safeLowWait'] < 30:
-            safeLowWait = self.find_nearest_time(waitingTimes, 30)
-            safeLow = self.gprecs['safeLow']
-            tuples = sorted(gasPriceRange.items(), key=lambda x: x[0])
-            for elm in tuples:
-                if safeLowWait == elm[1]:
-                    safeLow = elm[0] * 10
-                    break
-            if self.gprecs['safeLowWait'] < safeLowWait:
-                self.gprecs['safeLow'] = safeLow
-                self.gprecs['safeLowWait'] = safeLowWait
+        # prices = [k for k in  gasPriceRange]
+        # waitingTimes = list(gasPriceRange.values())
+        # prices.reverse()
+        # if self.gprecs['average'] >= 1000:
+        #     average = self.find_closest_gas(prices, 0, self.gprecs['fast'] / (2 * 10)) * 10
+        #     if average < self.gprecs['average']:
+        #         self.gprecs['average'] = average
+        #         self.gprecs['avgWait'] = lookup(average)
+        #     low = self.find_closest_gas(prices, 0, self.gprecs['average'] / (2 * 10)) * 10
+        #     if low < self.gprecs['safeLow']:
+        #         self.gprecs['safeLow'] = low
+        #         self.gprecs['safeLowWait'] = lookup(low)
+        #
+        # if self.gprecs['avgWait'] < 5:
+        #     avgWait = self.find_nearest_time(waitingTimes, 5)
+        #     average = self.gprecs['average']
+        #     tuples = sorted(gasPriceRange.items() ,  key=lambda x: x[0] )
+        #     for elm in tuples:
+        #         if avgWait == elm[1]:
+        #             average = elm[0] * 10
+        #             break
+        #     if self.gprecs['avgWait'] < avgWait:
+        #         self.gprecs['average'] = average
+        #         self.gprecs['avgWait'] = avgWait
+        #
+        # if self.gprecs['safeLowWait'] < 30:
+        #     safeLowWait = self.find_nearest_time(waitingTimes, 30)
+        #     safeLow = self.gprecs['safeLow']
+        #     tuples = sorted(gasPriceRange.items(), key=lambda x: x[0])
+        #     for elm in tuples:
+        #         if safeLowWait == elm[1]:
+        #             safeLow = elm[0] * 10
+        #             break
+        #     if self.gprecs['safeLowWait'] < safeLowWait:
+        #         self.gprecs['safeLow'] = safeLow
+        #         self.gprecs['safeLowWait'] = safeLowWait
 
         gasPriceRange[int(self.gprecs['fast'] / 10)] = self.gprecs['fastWait']
         gasPriceRange[int(self.gprecs['average'] / 10)] = self.gprecs['avgWait']
@@ -946,7 +949,7 @@ class GasPriceReport():
             if self.gprecs['average'] > self.gprecs['fast']:
                 self.gprecs['fast'] = self.gprecs['fastest']
             print(self.gprecs)
-            exporter.write_json('ethgasAPI-private', self.gprecs)
+            exporter.write_json('ethgasAPI', self.gprecs)
         except Exception as e:
             console.error("write_to_json: Exception caught: " + str(e))
 
