@@ -289,9 +289,9 @@ class BlockDataContainer():
         df = df.join(hashpower, how='left')
         df = df.fillna(method = 'ffill')
         df = df.fillna(0)
-        self.safe = df.loc[df['hashp_pct']>=30].index.min()
-        self.avg = df.loc[df['hashp_pct']>=50].index.min()
-        self.fast = df.loc[df['hashp_pct']>=90].index.min()
+        self.safe = df.loc[df['hashp_pct'] >= 35].index.min()
+        self.avg = df.loc[df['hashp_pct'] >= 55].index.min()
+        self.fast = df.loc[df['hashp_pct'] >= 90].index.min()
         self.fastest = df.loc[df['hashp_pct']>=99].index.min()
         self.hashpower = df
         self.block_time = avg_timemined
@@ -784,20 +784,16 @@ class GasPriceReport():
     
 
     def get_wait(self, prediction_table):
-        safelow_predict = prediction_table.loc[prediction_table['expectedTime'] <= 30].index.min()
+        safelow_predict = prediction_table.loc[prediction_table['expectedTime'] <= 25].index.min()
         console.info('safeLow predict: ' + str(safelow_predict))
-        avg_predict = prediction_table.loc[prediction_table['expectedTime'] <= 5].index.min()
+        avg_predict = prediction_table.loc[prediction_table['expectedTime'] <= 3].index.min()
         console.info('avg predict: ' + str(avg_predict))
 
-        fast_predict = self.gprecs['fast']
         fastest_predict = self.gprecs['fastest']
-        if fast_predict >= 1000:
-            fast_predict = prediction_table.loc[prediction_table['expectedTime'] <= 0.5].index.min()
-            if fast_predict >= 1000:
-                fast_predict = prediction_table.loc[prediction_table['expectedTime'] <= 1].index.min()
+        fast_predict = prediction_table.loc[prediction_table['expectedTime'] <= 0.5].index.min()
         console.info('fast predict: ' + str(fast_predict))
 
-        if self.gprecs['fast'] > fast_predict:
+        if self.gprecs['fast'] < fast_predict:
             self.gprecs['fast'] = fast_predict
 
         if self.gprecs['safeLow'] < safelow_predict:
@@ -810,11 +806,15 @@ class GasPriceReport():
         self.array30m.append(self.gprecs['safeLow'])
         self.array5m.append(self.gprecs['average'])
 
-        self.gprecs['safeLow'] = np.percentile(self.array30m, 50)
-        self.gprecs['average'] = np.percentile(self.array5m, 50)
+        safelow_predict = np.percentile(self.array30m, 50)
+        avg_predict = np.percentile(self.array5m, 50)
 
-        if fastest_predict < 800 and fast_predict < 500:
-            self.gprecs['fast'] = fastest_predict
+        if self.gprecs['safeLow'] < safelow_predict:
+            self.gprecs['safeLow'] = safelow_predict
+
+        if self.gprecs['average'] < avg_predict:
+            self.gprecs['average'] = avg_predict
+
 
         if len(self.array5m) > 10:
             self.array5m.pop(0)
@@ -840,6 +840,19 @@ class GasPriceReport():
         self.gprecs['avgWait'] = lookup(self.gprecs['average'])
         self.gprecs['fastWait'] = lookup(self.gprecs['fast'])
         self.gprecs['fastestWait'] = lookup(self.gprecs['fastest'])
+
+        if fastest_predict < 800 and fast_predict < 500:
+            self.gprecs['fast'] = fastest_predict
+            self.gprecs['fastWait'] = self.gprecs['fastestWait']
+
+        if self.gprecs['safeLow'] > self.gprecs['average']:
+            self.gprecs['average'] = self.gprecs['safeLow']
+            self.gprecs['avgWait'] = self.gprecs['safeLowWait']
+
+        if self.gprecs['average'] > self.gprecs['fast']:
+            self.gprecs['fast'] = self.gprecs['average']
+            self.gprecs['fastWait'] = self.gprecs['avgWait']
+
 
         gasPrice = int(self.gprecs['fastest'])
         skip = 50
@@ -872,37 +885,29 @@ class GasPriceReport():
         #         self.gprecs['safeLowWait'] = lookup(low)
         #
 
-        if self.gprecs['avgWait'] < 5:
-            avgWait = self.find_nearest_time(waitingTimes, 5)
-            average = self.gprecs['average']
-            tuples = sorted(gasPriceRange.items() ,  key=lambda x: x[0] )
-            for elm in tuples:
-                if avgWait == elm[1]:
-                    average = elm[0] * 10
-                    break
-            if self.gprecs['avgWait'] < avgWait:
-                self.gprecs['average'] = average
-                self.gprecs['avgWait'] = avgWait
-
-        if self.gprecs['safeLowWait'] < 30:
-            safeLowWait = self.find_nearest_time(waitingTimes, 30)
-            safeLow = self.gprecs['safeLow']
-            tuples = sorted(gasPriceRange.items(), key=lambda x: x[0])
-            for elm in tuples:
-                if safeLowWait == elm[1]:
-                    safeLow = elm[0] * 10
-                    break
-            if self.gprecs['safeLowWait'] < safeLowWait:
-                self.gprecs['safeLow'] = safeLow
-                self.gprecs['safeLowWait'] = safeLowWait
-
-        if self.gprecs['average'] > self.gprecs['fast']:
-            self.gprecs['average'] = self.gprecs['fast']
-            self.gprecs['avgWait'] = self.gprecs['fastWait']
-
-        if self.gprecs['safeLow'] > self.gprecs['average']:
-            self.gprecs['safeLow'] = self.gprecs['average']
-            self.gprecs['safeLowWait'] = self.gprecs['avgWait']
+        # if self.gprecs['avgWait'] < 5:
+        #     avgWait = self.find_nearest_time(waitingTimes, 5)
+        #     average = self.gprecs['average']
+        #     tuples = sorted(gasPriceRange.items() ,  key=lambda x: x[0] )
+        #     for elm in tuples:
+        #         if avgWait == elm[1]:
+        #             average = elm[0] * 10
+        #             break
+        #     if self.gprecs['avgWait'] < avgWait:
+        #         self.gprecs['average'] = average
+        #         self.gprecs['avgWait'] = avgWait
+        #
+        # if self.gprecs['safeLowWait'] < 30:
+        #     safeLowWait = self.find_nearest_time(waitingTimes, 30)
+        #     safeLow = self.gprecs['safeLow']
+        #     tuples = sorted(gasPriceRange.items(), key=lambda x: x[0])
+        #     for elm in tuples:
+        #         if safeLowWait == elm[1]:
+        #             safeLow = elm[0] * 10
+        #             break
+        #     if self.gprecs['safeLowWait'] < safeLowWait:
+        #         self.gprecs['safeLow'] = safeLow
+        #         self.gprecs['safeLowWait'] = safeLowWait
 
         gasPriceRange[int(self.gprecs['fast'] / 10)] = self.gprecs['fastWait']
         gasPriceRange[int(self.gprecs['average'] / 10)] = self.gprecs['avgWait']
