@@ -806,8 +806,6 @@ class GasPriceReport():
         if self.gprecs['average'] < avg_predict:
             self.gprecs['average'] = avg_predict
 
-        if self.gprecs['safeLow'] > self.gprecs['average']:
-            self.gprecs['safeLow'] = self.gprecs['average']
         
         self.array30m.append(self.gprecs['safeLow'])
         self.array5m.append(self.gprecs['average'])
@@ -862,15 +860,17 @@ class GasPriceReport():
         prices = [k for k in  gasPriceRange]
         waitingTimes = list(gasPriceRange.values())
         prices.reverse()
-        if self.gprecs['average'] >= 1000:
-            average = self.find_closest_gas(prices, 0, self.gprecs['fast'] / (2 * 10)) * 10
-            if average < self.gprecs['average']:
-                self.gprecs['average'] = average
-                self.gprecs['avgWait'] = lookup(average)
-            low = self.find_closest_gas(prices, 0, self.gprecs['average'] / (2 * 10)) * 10
-            if low < self.gprecs['safeLow']:
-                self.gprecs['safeLow'] = low
-                self.gprecs['safeLowWait'] = lookup(low)
+
+        # if self.gprecs['average'] >= 1000:
+        #     average = self.find_closest_gas(prices, 0, self.gprecs['fast'] / (2 * 10)) * 10
+        #     if average < self.gprecs['average']:
+        #         self.gprecs['average'] = average
+        #         self.gprecs['avgWait'] = lookup(average)
+        #     low = self.find_closest_gas(prices, 0, self.gprecs['average'] / (2 * 10)) * 10
+        #     if low < self.gprecs['safeLow']:
+        #         self.gprecs['safeLow'] = low
+        #         self.gprecs['safeLowWait'] = lookup(low)
+        #
 
         if self.gprecs['avgWait'] < 5:
             avgWait = self.find_nearest_time(waitingTimes, 5)
@@ -895,6 +895,14 @@ class GasPriceReport():
             if self.gprecs['safeLowWait'] < safeLowWait:
                 self.gprecs['safeLow'] = safeLow
                 self.gprecs['safeLowWait'] = safeLowWait
+
+        if self.gprecs['average'] > self.gprecs['fast']:
+            self.gprecs['average'] = self.gprecs['fast']
+            self.gprecs['avgWait'] = self.gprecs['fastWait']
+
+        if self.gprecs['safeLow'] > self.gprecs['average']:
+            self.gprecs['safeLow'] = self.gprecs['average']
+            self.gprecs['safeLowWait'] = self.gprecs['avgWait']
 
         gasPriceRange[int(self.gprecs['fast'] / 10)] = self.gprecs['fastWait']
         gasPriceRange[int(self.gprecs['average'] / 10)] = self.gprecs['avgWait']
