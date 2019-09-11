@@ -291,7 +291,7 @@ class BlockDataContainer():
         df = df.fillna(0)
         self.safe = df.loc[df['hashp_pct'] >= 35].index.min()
         self.avg = df.loc[df['hashp_pct'] >= 55].index.min()
-        self.fast = df.loc[df['hashp_pct'] >= 90].index.min()
+        self.fast = df.loc[df['hashp_pct'] >= 92].index.min()
         self.fastest = df.loc[df['hashp_pct']>=99].index.min()
         self.hashpower = df
         self.block_time = avg_timemined
@@ -786,7 +786,7 @@ class GasPriceReport():
     def get_wait(self, prediction_table):
         safelow_predict = prediction_table.loc[prediction_table['expectedTime'] <= 25].index.min()
         console.info('safeLow predict: ' + str(safelow_predict))
-        avg_predict = prediction_table.loc[prediction_table['expectedTime'] <= 3].index.min()
+        avg_predict = prediction_table.loc[prediction_table['expectedTime'] <= 4].index.min()
         console.info('avg predict: ' + str(avg_predict))
 
         fastest_predict = self.gprecs['fastest']
@@ -852,6 +852,10 @@ class GasPriceReport():
         if self.gprecs['average'] > self.gprecs['fast']:
             self.gprecs['fast'] = self.gprecs['average']
             self.gprecs['fastWait'] = self.gprecs['avgWait']
+
+        if self.gprecs['fast'] > self.gprecs['fastest']:
+            self.gprecs['fastest'] = self.gprecs['fast']
+            self.gprecs['fastestWait'] = self.gprecs['fastWait']
 
 
         gasPrice = int(self.gprecs['fastest'])
@@ -954,10 +958,6 @@ class GasPriceReport():
             self.gprecs['average'] /= 10 
             self.gprecs['fast'] /= 10
             self.gprecs['fastest'] /= 10
-            if self.gprecs['average'] > self.gprecs['fastest']:
-                self.gprecs['fastest'] = self.gprecs['average']
-            if self.gprecs['average'] > self.gprecs['fast']:
-                self.gprecs['fast'] = self.gprecs['fastest']
             print(self.gprecs)
             exporter.write_json('ethgasAPI', self.gprecs)
         except Exception as e:
