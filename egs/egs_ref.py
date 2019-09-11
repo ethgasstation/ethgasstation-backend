@@ -898,9 +898,11 @@ class GasPriceReport():
 
         if self.gprecs['average'] > self.gprecs['fast']:
             self.gprecs['average'] = self.gprecs['fast']
+            self.gprecs['avgWait'] = self.gprecs['fastWait']
 
         if self.gprecs['safeLow'] > self.gprecs['average']:
             self.gprecs['safeLow'] = self.gprecs['average']
+            self.gprecs['safeLowWait'] = self.gprecs['avgWait']
 
         gasPriceRange[int(self.gprecs['fast'] / 10)] = self.gprecs['fastWait']
         gasPriceRange[int(self.gprecs['average'] / 10)] = self.gprecs['avgWait']
