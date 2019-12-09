@@ -81,15 +81,7 @@ class SummaryReport():
             self.post['ETHpriceEUR'] = 0
             self.post['ETHpriceCNY'] = 0
             self.post['ETHpriceGBP'] = 0
-
-        """find minimum gas price with at least 50 transactions mined"""
-        tx_grouped_price = self.tx_df[['block_posted', 'minedGasPrice']].groupby('minedGasPrice').count()
-        tx_grouped_price.rename(columns = {'block_posted': 'count'}, inplace = True)
-        tx_grouped_price['sum'] = tx_grouped_price['count'].cumsum()
-        minlow_series = tx_grouped_price[tx_grouped_price['sum']>50].index
-        self.post['minLow'] = float(minlow_series.min())
-        self.minlow = float(minlow_series.min()*10)
-
+        
         """generate table with key miner stats"""
         miner_txdata = self.tx_df[['block_posted', 'miner']].groupby('miner').count()
         miner_txdata.rename(columns={'block_posted':'count'}, inplace = True)
