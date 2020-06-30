@@ -1,0 +1,25 @@
+# Use root/example as user/password credentials
+version: '3.1'
+
+services:
+    mariadb:
+        image: mariadb
+        restart: always
+        environment:
+            MYSQL_USER: ethgas
+            MYSQL_PASSWORD: station
+            MYSQL_DATABASE: tx
+            MYSQL_ROOT_PASSWORD: myrootpassword # change this password!
+
+    redis:
+        image: redis:3.2
+        container_name: redis
+
+    ethgasstation:
+        build:
+            context: ./
+            dockerfile: ./Dockerfile
+        image: ethgasstation
+        depends_on: 
+            - mariadb
+            - redis

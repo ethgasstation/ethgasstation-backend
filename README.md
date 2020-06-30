@@ -65,3 +65,9 @@ In the Docker service, the Python script will dump data to JSON on Redis.
 You will need to update your settings.conf to the internal hostnames
 available for MariaDB, Redis, and geth or parity, respectively within your
 infrastructure.
+
+It is also possible to run the oracle, redis and MariaDB as a **Docker compose**.
+
+1. Change the settings in settings.docker.conf.
+2. Run `docker-compose -f compose.yml build` from this directory.
+3. Run `docker-compose -f compose up`.
