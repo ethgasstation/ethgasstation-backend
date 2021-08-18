@@ -1,7 +1,7 @@
 FROM ubuntu:xenial
 RUN apt-get update
 RUN apt-get install -y software-properties-common python-software-properties
-RUN add-apt-repository ppa:jonathonf/python-3.6
+RUN add-apt-repository ppa:deadsnakes/ppa
 RUN apt-get update
 RUN apt-get install -y python3.6 python3.6-dev python3.6-venv python3-pip
 
